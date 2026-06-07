@@ -249,9 +249,10 @@ returns table(
 ) as $$
 declare
   v_shop_id uuid;
+  v_employee_id uuid;
 begin
-  select e.shop_id
-  into v_shop_id
+  select e.shop_id, e.id
+  into v_shop_id, v_employee_id
   from employee_sessions es
   join employees e on e.id = es.employee_id
   where es.session_token = p_token
@@ -281,6 +282,7 @@ begin
   left join employees e on e.id = a.employee_id
   left join services s on s.id = a.service_id
   where a.shop_id = v_shop_id
+    and a.employee_id = v_employee_id
     and a.appointment_date between p_from and p_to
   order by a.appointment_date, a.start_time;
 end;

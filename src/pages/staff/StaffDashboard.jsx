@@ -163,35 +163,6 @@ export default function StaffDashboard() {
     return (data || []).map(normalizeAppointment)
   }
 
-  async function loadShopAppointments() {
-    if (!shopId) return []
-
-    const { data, error: queryError } = await supabase
-      .from('appointments')
-      .select(`
-        id,
-        employee_id,
-        service_id,
-        customer_name,
-        customer_phone,
-        appointment_date,
-        start_time,
-        end_time,
-        status,
-        notes,
-        employees(name),
-        services(name, duration, price)
-      `)
-      .eq('shop_id', shopId)
-      .gte('appointment_date', dateFrom)
-      .lte('appointment_date', dateTo)
-      .order('appointment_date')
-      .order('start_time')
-
-    if (queryError) throw queryError
-    return (data || []).map(normalizeAppointment)
-  }
-
   async function loadEmployeeAppointmentsWithoutShop() {
     if (!employeeId) return []
 
@@ -247,10 +218,7 @@ export default function StaffDashboard() {
     if (queryError) throw queryError
 
     return (data || [])
-      .filter(appointment =>
-        (shopId && appointment.shop_id === shopId) ||
-        (employeeId && appointment.employee_id === employeeId)
-      )
+      .filter(appointment => employeeId && appointment.employee_id === employeeId)
       .map(normalizeAppointment)
   }
 
@@ -262,21 +230,6 @@ export default function StaffDashboard() {
       setError('Personel oturumu bulunamadi. Lutfen tekrar giris yapin.')
       setLoading(false)
       return
-    }
-
-    let shopAppointments = null
-
-    if (shopId) {
-      try {
-        shopAppointments = await loadShopAppointments()
-        if (shopAppointments.length > 0) {
-          setAppointments(shopAppointments)
-          setLoading(false)
-          return
-        }
-      } catch (shopAppointmentsError) {
-        setError(shopAppointmentsError.message)
-      }
     }
 
     let directAppointments = null
@@ -322,7 +275,7 @@ export default function StaffDashboard() {
       setError(visibleFallbackError.message)
     }
 
-    const emptyResult = shopAppointments || directAppointments || employeeOnlyAppointments || visibleFallbackAppointments || []
+    const emptyResult = directAppointments || employeeOnlyAppointments || visibleFallbackAppointments || []
     setAppointments(emptyResult)
     if (emptyResult.length === 0) {
       setError(`Staff randevu sorgusu bos dondu. Oturum: ${shopName || 'Dukkan yok'} / ${employeeName || 'Personel yok'}. shopId=${shopId || '-'} employeeId=${employeeId || '-'}. Supabase staff oturumu appointments tablosunu okuyamiyor. SUPABASE_SETUP.sql dosyasini SQL Editor'da calistirip personel panelinden cik-gir yap.`)
@@ -370,6 +323,9 @@ export default function StaffDashboard() {
         table: 'appointments',
         filter: `shop_id=eq.${shopId}`,
       }, payload => {
+        const changedEmployeeId = payload.new?.employee_id || payload.old?.employee_id
+        if (changedEmployeeId && changedEmployeeId !== employeeId) return
+
         if (payload.eventType === 'INSERT') {
           showStaffAppointmentNotification(payload.new)
         }
