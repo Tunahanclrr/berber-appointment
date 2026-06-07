@@ -84,6 +84,22 @@ export default function Dashboard() {
     }
 
     load()
+
+    const channel = supabase
+      .channel(`dashboard-appointments-live-${shop.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'appointments',
+        filter: `shop_id=eq.${shop.id}`,
+      }, () => {
+        load()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [shop])
 
   if (loading) return <Loading />

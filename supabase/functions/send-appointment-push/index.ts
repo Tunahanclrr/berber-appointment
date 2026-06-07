@@ -56,8 +56,8 @@ serve(async req => {
 
     if (subscriptionsError) throw subscriptionsError
 
-    const relatedSubscriptions = (subscriptions || []).filter(subscription =>
-      !subscription.employee_id || subscription.employee_id === appointment.employee_id
+    const relatedSubscriptions = Array.from(
+      new Map((subscriptions || []).map(subscription => [subscription.endpoint, subscription])).values()
     )
 
     const shopName = appointment.shops?.name || 'Dukkan'
@@ -84,7 +84,15 @@ serve(async req => {
             p256dh: subscription.p256dh,
             auth: subscription.auth,
           },
-        }, payload)
+        }, payload).catch(error => {
+          console.error('Push send failed', {
+            subscriptionId: subscription.id,
+            statusCode: error?.statusCode,
+            body: error?.body,
+            message: error?.message,
+          })
+          throw error
+        })
       )
     )
 

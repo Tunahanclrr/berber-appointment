@@ -12,7 +12,12 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Loading from '../../components/ui/Loading'
 import { buildAppointmentMessage, buildWhatsAppUrl } from '../../lib/whatsapp'
-import { enableStaffPushNotifications, notifyAppointmentCreated } from '../../lib/pushNotifications'
+import {
+  enableStaffPushNotifications,
+  getStaffPushSubscriptionStatus,
+  notifyAppointmentCreated,
+  showStaffAppointmentNotification,
+} from '../../lib/pushNotifications'
 
 function emptyAppointment(employeeId = '') {
   return {
@@ -45,6 +50,7 @@ export default function StaffDashboard() {
   const [saving, setSaving] = useState(false)
   const [pushStatus, setPushStatus] = useState('')
   const [pushLoading, setPushLoading] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
 
   const today = todayISO()
 
@@ -340,6 +346,40 @@ export default function StaffDashboard() {
     if (token) load()
   }, [token, employeeId, shopId, dateFrom, dateTo])
 
+  useEffect(() => {
+    if (!token) return
+
+    getStaffPushSubscriptionStatus()
+      .then(status => {
+        setPushEnabled(status.enabled)
+        if (status.enabled) setPushStatus('Bildirimler acik. Yeni randevular bu cihaza gelecek.')
+      })
+      .catch(() => setPushEnabled(false))
+  }, [token])
+
+  useEffect(() => {
+    if (!token || !shopId) return
+
+    const channel = supabase
+      .channel(`staff-appointments-live-${shopId}-${employeeId || 'all'}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'appointments',
+        filter: `shop_id=eq.${shopId}`,
+      }, payload => {
+        if (payload.eventType === 'INSERT') {
+          showStaffAppointmentNotification(payload.new)
+        }
+        load()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [token, employeeId, shopId, dateFrom, dateTo])
+
   function openAddModal() {
     setModalMode('add')
     setForm(emptyAppointment(employeeId))
@@ -510,8 +550,10 @@ export default function StaffDashboard() {
 
     try {
       await enableStaffPushNotifications({ shopId, employeeId })
+      setPushEnabled(true)
       setPushStatus('Bildirimler acildi. Yeni randevular bu telefona gelecek.')
     } catch (pushError) {
+      setPushEnabled(false)
       setPushStatus(pushError.message)
     }
 
@@ -637,8 +679,8 @@ export default function StaffDashboard() {
             </p>
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-            <Button variant="secondary" size="sm" onClick={handleEnablePush} disabled={pushLoading}>
-              {pushLoading ? 'Aciliyor...' : 'Bildirimleri Ac'}
+            <Button variant="secondary" size="sm" onClick={handleEnablePush} disabled={pushLoading || pushEnabled}>
+              {pushLoading ? 'Aciliyor...' : pushEnabled ? 'Bildirimler Acik' : 'Bildirimleri Ac'}
             </Button>
             <Button size="sm" onClick={openAddModal}>+ Randevu Ekle</Button>
             <Button variant="secondary" size="sm" onClick={handleLogout}>Cikis</Button>
@@ -706,15 +748,17 @@ export default function StaffDashboard() {
               )}
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {filteredAppointments.map(appointment => (
-                <div key={appointment.id} className="rounded-lg border border-gold/10 bg-navy/50 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-lg font-medium text-gold">{formatTime(appointment.start_time)}</span>
+                <div key={appointment.id} className="flex min-h-full flex-col rounded-lg border border-gold/10 bg-navy/50 p-4">
+                  <div className="flex flex-1 flex-col gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <span className="block font-mono text-xl font-semibold text-gold">{formatTime(appointment.start_time)}</span>
+                          <span className="text-sm text-cream-muted">{appointment.appointment_date}</span>
+                        </div>
                         <Badge status={appointment.status} />
-                        <span className="text-sm text-cream-muted">{appointment.appointment_date}</span>
                       </div>
                       <p className="mt-1 font-medium text-cream">{appointment.customer_name}</p>
                       <p className="text-sm text-cream-muted">{appointment.customer_phone}</p>
@@ -728,21 +772,21 @@ export default function StaffDashboard() {
                       )}
                       {appointment.notes && <p className="mt-2 text-sm text-cream-muted">{appointment.notes}</p>}
                     </div>
-                    <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                    <div className="grid grid-cols-2 gap-2">
                       {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status === 'pending' && (
-                        <Button size="sm" onClick={() => updateStatusAndNotify(appointment, 'confirmed')}>Onayla</Button>
+                        <Button size="sm" className="w-full" onClick={() => updateStatusAndNotify(appointment, 'confirmed')}>Onayla</Button>
                       )}
                       {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status === 'confirmed' && (
-                        <Button size="sm" onClick={() => updateStatus(appointment.id, 'done')}>Tamamla</Button>
+                        <Button size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'done')}>Tamamla</Button>
                       )}
                       {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status !== 'cancelled' && appointment.status !== 'done' && (
-                        <Button variant="secondary" size="sm" onClick={() => updateStatus(appointment.id, 'cancelled')}>Iptal</Button>
+                        <Button variant="secondary" size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'cancelled')}>Iptal</Button>
                       )}
-                      <Button variant="secondary" size="sm" onClick={() => openWhatsApp(appointment)}>WhatsApp</Button>
+                      <Button variant="secondary" size="sm" className="w-full" onClick={() => openWhatsApp(appointment)}>WhatsApp</Button>
                       {(appointment.employee_id === employeeId || !appointment.employee_id) && (
                         <>
-                          <Button variant="secondary" size="sm" onClick={() => openEditModal(appointment)}>Duzenle</Button>
-                          <Button variant="danger" size="sm" onClick={() => handleDeleteAppt(appointment.id)}>Sil</Button>
+                          <Button variant="secondary" size="sm" className="w-full" onClick={() => openEditModal(appointment)}>Duzenle</Button>
+                          <Button variant="danger" size="sm" className="w-full" onClick={() => handleDeleteAppt(appointment.id)}>Sil</Button>
                         </>
                       )}
                     </div>

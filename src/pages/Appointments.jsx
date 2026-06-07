@@ -171,6 +171,27 @@ export default function Appointments() {
     if (shop) loadUpcoming()
   }, [shop])
 
+  useEffect(() => {
+    if (!shop?.id) return
+
+    const channel = supabase
+      .channel(`shop-appointments-live-${shop.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'appointments',
+        filter: `shop_id=eq.${shop.id}`,
+      }, () => {
+        load()
+        loadUpcoming()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [shop?.id, date, filterStatus, filterEmployee, view, search])
+
   function openAddModal() {
     setModalMode('add')
     setForm(emptyAppointment())

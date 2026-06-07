@@ -43,6 +43,23 @@ create index if not exists push_subscriptions_employee_id_idx on push_subscripti
 
 alter table push_subscriptions enable row level security;
 
+-- Canli dashboard: appointments degisince Supabase Realtime event gonderebilsin.
+alter table appointments replica identity full;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'appointments'
+  ) then
+    alter publication supabase_realtime add table appointments;
+  end if;
+end;
+$$;
+
 -- Public booking ve staff PIN paneli auth user kullanmadigi icin okuma izinleri gerekir.
 drop policy if exists "shops_public_select" on shops;
 create policy "shops_public_select"

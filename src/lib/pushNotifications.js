@@ -24,6 +24,21 @@ export function getPushSupportStatus() {
   return { supported: true, reason: '' }
 }
 
+export async function getStaffPushSubscriptionStatus() {
+  const support = getPushSupportStatus()
+  if (!support.supported) return { enabled: false, reason: support.reason }
+  if (Notification.permission !== 'granted') return { enabled: false, reason: 'Bildirim izni bekleniyor.' }
+
+  const registration = await navigator.serviceWorker.register('/sw.js')
+  await navigator.serviceWorker.ready
+  const subscription = await registration.pushManager.getSubscription()
+
+  return {
+    enabled: Boolean(subscription),
+    reason: subscription ? '' : 'Bu cihazda bildirim aboneligi yok.',
+  }
+}
+
 export async function enableStaffPushNotifications({ shopId, employeeId }) {
   const support = getPushSupportStatus()
   if (!support.supported) throw new Error(support.reason)
@@ -62,13 +77,45 @@ export async function enableStaffPushNotifications({ shopId, employeeId }) {
   return true
 }
 
+export async function showStaffAppointmentNotification(appointment) {
+  try {
+    const support = getPushSupportStatus()
+    if (!support.supported || Notification.permission !== 'granted') return false
+
+    const registration = await navigator.serviceWorker.register('/sw.js')
+    await navigator.serviceWorker.ready
+
+    const time = String(appointment?.start_time || '').slice(0, 5)
+    const body = [
+      appointment?.customer_name || 'Yeni musteri',
+      appointment?.appointment_date,
+      time,
+    ].filter(Boolean).join(' - ')
+
+    await registration.showNotification('Yeni randevu alindi', {
+      body: body || 'Yeni bir randevu olusturuldu.',
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      tag: `appointment-${appointment?.id || Date.now()}`,
+      data: { url: '/staff/dashboard', appointmentId: appointment?.id },
+      requireInteraction: true,
+    })
+
+    return true
+  } catch (error) {
+    console.warn('Yerel bildirim gosterilemedi:', error)
+    return false
+  }
+}
+
 export async function notifyAppointmentCreated(appointmentId) {
   if (!appointmentId) return
 
   try {
-    await supabase.functions.invoke('send-appointment-push', {
+    const { error } = await supabase.functions.invoke('send-appointment-push', {
       body: { appointment_id: appointmentId },
     })
+    if (error) throw error
   } catch (error) {
     console.warn('Push bildirimi gonderilemedi:', error)
   }
