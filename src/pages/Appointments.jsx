@@ -10,6 +10,7 @@ import Select from '../components/ui/Select'
 import Loading from '../components/ui/Loading'
 import { buildAppointmentMessage, buildWhatsAppUrl } from '../lib/whatsapp'
 import { notifyAppointmentCreated } from '../lib/pushNotifications'
+import { formatTurkishMobile, getTurkishMobileError, normalizeTurkishMobile } from '../lib/phone'
 
 const VIEWS = ['tum', 'liste', 'gunluk', 'haftalik']
 
@@ -45,6 +46,8 @@ export default function Appointments() {
   const [modalMode, setModalMode] = useState('add')
   const [form, setForm] = useState(emptyAppointment)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const summary = useMemo(() => ({
     total: appointments.length,
@@ -203,7 +206,7 @@ export default function Appointments() {
     setForm({
       id: appointment.id,
       customerName: appointment.customer_name || '',
-      customerPhone: appointment.customer_phone || '',
+      customerPhone: formatTurkishMobile(appointment.customer_phone || ''),
       employeeId: appointment.employee_id || '',
       serviceIds: getServiceIdsFromAppointment(appointment),
       appointmentDate: appointment.appointment_date || todayISO(),
@@ -248,22 +251,35 @@ export default function Appointments() {
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  async function handleDeleteAppt(id) {
-    if (!confirm('Bu randevuyu kalici olarak silmek istiyor musun?')) return
-
+  async function handleDeleteAppt() {
+    if (!deleteTarget) return
     setError('')
-    const { error: deleteError } = await supabase.from('appointments').delete().eq('id', id).eq('shop_id', shop.id)
+    setDeleting(true)
+
+    const { error: deleteError } = await supabase.from('appointments').delete().eq('id', deleteTarget.id).eq('shop_id', shop.id)
     if (deleteError) {
       setError(deleteError.message)
+      setDeleting(false)
       return
     }
+
+    setDeleteTarget(null)
+    setAppointments(prev => prev.filter(appointment => appointment.id !== deleteTarget.id))
+    setUpcomingAppointments(prev => prev.filter(appointment => appointment.id !== deleteTarget.id))
     await load()
     await loadUpcoming()
+    setDeleting(false)
   }
 
   async function handleSaveAppt() {
     if (!form.customerName.trim() || !form.customerPhone.trim() || !form.employeeId || form.serviceIds.length === 0) {
       alert('Tum alanlari doldurunuz.')
+      return
+    }
+
+    const phoneError = getTurkishMobileError(form.customerPhone)
+    if (phoneError) {
+      setError(phoneError)
       return
     }
 
@@ -307,7 +323,7 @@ export default function Appointments() {
       employee_id: form.employeeId,
       service_id: form.serviceIds[0],
       customer_name: form.customerName.trim(),
-      customer_phone: form.customerPhone.trim(),
+      customer_phone: normalizeTurkishMobile(form.customerPhone),
       appointment_date: form.appointmentDate,
       start_time: startTime,
       end_time: endTime,
@@ -336,6 +352,25 @@ export default function Appointments() {
 
   return (
     <div className="space-y-6">
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="font-display text-xl font-bold text-cream">Randevu silinsin mi?</h2>
+            <p className="mt-2 text-sm text-cream-muted">
+              {deleteTarget.customer_name} randevusu kalici olarak silinecek.
+            </p>
+            <div className="mt-5 flex flex-col gap-2 min-[420px]:flex-row">
+              <Button variant="secondary" className="flex-1" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+                Vazgec
+              </Button>
+              <Button variant="danger" className="flex-1" onClick={handleDeleteAppt} disabled={deleting}>
+                {deleting ? 'Siliniyor...' : 'Sil'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:items-center sm:p-4">
           <Card className="my-auto w-full max-w-2xl">
@@ -345,7 +380,15 @@ export default function Appointments() {
             <div className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input label="Musteri Adi" value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} />
-                <Input label="Telefon" value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} />
+                <Input
+                  label="Telefon"
+                  value={form.customerPhone}
+                  onChange={e => setForm({ ...form, customerPhone: formatTurkishMobile(e.target.value) })}
+                  placeholder="05xx xxx xx xx"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  maxLength={14}
+                />
                 <Select label="Personel" value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}>
                   <option value="">Seciniz</option>
                   {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -541,7 +584,7 @@ export default function Appointments() {
                       <p className="text-cream-muted">{a.appointment_date}</p>
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         <Button size="sm" variant="secondary" onClick={() => openEditModal(a)}>Duzenle</Button>
-                        <Button size="sm" variant="danger" onClick={() => handleDeleteAppt(a.id)}>Sil</Button>
+                        <Button size="sm" variant="danger" onClick={() => setDeleteTarget(a)}>Sil</Button>
                       </div>
                     </div>
                   ))}
@@ -575,7 +618,7 @@ export default function Appointments() {
                   )}
                   <Button variant="secondary" size="sm" onClick={() => openWhatsApp(a)}>WhatsApp</Button>
                   <Button variant="secondary" size="sm" onClick={() => openEditModal(a)}>Duzenle</Button>
-                  <Button variant="danger" size="sm" onClick={() => handleDeleteAppt(a.id)}>Sil</Button>
+                  <Button variant="danger" size="sm" onClick={() => setDeleteTarget(a)}>Sil</Button>
                 </div>
               </div>
             </Card>

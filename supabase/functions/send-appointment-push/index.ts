@@ -13,9 +13,13 @@ function requireEnv(name: string) {
   return value
 }
 
-async function sendPushes(admin: ReturnType<typeof createClient>, subscriptions: any[], payload: string) {
+async function sendPushes(admin: ReturnType<typeof createClient>, subscriptions: any[], payload: string, targetEmployeeId: string | null = null) {
+  const targetedSubscriptions = targetEmployeeId
+    ? (subscriptions || []).filter(subscription => subscription.employee_id === targetEmployeeId)
+    : subscriptions || []
+
   const relatedSubscriptions = Array.from(
-    new Map((subscriptions || []).map(subscription => [subscription.endpoint, subscription])).values()
+    new Map(targetedSubscriptions.map(subscription => [subscription.endpoint, subscription])).values()
   )
 
   const results = await Promise.allSettled(
@@ -76,7 +80,7 @@ serve(async req => {
     })
 
     const body = await req.json()
-    const { appointment_id, test_shop_id } = body
+    const { appointment_id, test_shop_id, test_employee_id } = body
 
     if (test_shop_id) {
       const { data: subscriptions, error: subscriptionsError } = await admin
@@ -91,7 +95,7 @@ serve(async req => {
         body: 'Bildirim sistemi calisiyor. Yeni randevular bu cihaza gelecek.',
         tag: `test-${Date.now()}`,
         data: { url: '/staff/dashboard' },
-      }))
+      }), test_employee_id || null)
 
       return new Response(JSON.stringify({ ok: true, mode: 'test', ...result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -144,7 +148,7 @@ serve(async req => {
       },
     })
 
-    const result = await sendPushes(admin, subscriptions || [], payload)
+    const result = await sendPushes(admin, subscriptions || [], payload, appointment.employee_id || null)
 
     return new Response(JSON.stringify({
       ok: true,

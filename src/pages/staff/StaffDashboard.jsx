@@ -19,6 +19,7 @@ import {
   sendTestStaffPushNotification,
   showStaffAppointmentNotification,
 } from '../../lib/pushNotifications'
+import { formatTurkishMobile, getTurkishMobileError, normalizeTurkishMobile } from '../../lib/phone'
 
 function emptyAppointment(employeeId = '') {
   return {
@@ -53,6 +54,8 @@ export default function StaffDashboard() {
   const [pushLoading, setPushLoading] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [testPushLoading, setTestPushLoading] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const today = todayISO()
 
@@ -349,7 +352,7 @@ export default function StaffDashboard() {
     setForm({
       id: appointment.id,
       customerName: appointment.customer_name || '',
-      customerPhone: appointment.customer_phone || '',
+      customerPhone: formatTurkishMobile(appointment.customer_phone || ''),
       serviceIds: getServiceIdsFromAppointment(appointment),
       appointmentDate: appointment.appointment_date || todayISO(),
       startTime: formatTime(appointment.start_time) || '09:00',
@@ -418,6 +421,12 @@ export default function StaffDashboard() {
       return
     }
 
+    const phoneError = getTurkishMobileError(form.customerPhone)
+    if (phoneError) {
+      setError(phoneError)
+      return
+    }
+
     setSaving(true)
     setError('')
 
@@ -458,7 +467,7 @@ export default function StaffDashboard() {
       employee_id: employeeId,
       service_id: form.serviceIds[0],
       customer_name: form.customerName.trim(),
-      customer_phone: form.customerPhone.trim(),
+      customer_phone: normalizeTurkishMobile(form.customerPhone),
       appointment_date: form.appointmentDate,
       start_time: startTime,
       end_time: endTime,
@@ -483,23 +492,28 @@ export default function StaffDashboard() {
     setSaving(false)
   }
 
-  async function handleDeleteAppt(id) {
-    if (!confirm('Bu randevuyu silmek istiyor musun?')) return
-
+  async function handleDeleteAppt() {
+    if (!deleteTarget) return
     setError('')
+    setDeleting(true)
+
     const { error: deleteError } = await supabase
       .from('appointments')
       .delete()
-      .eq('id', id)
+      .eq('id', deleteTarget.id)
       .eq('shop_id', shopId)
       .eq('employee_id', employeeId)
 
     if (deleteError) {
       setError(deleteError.message)
+      setDeleting(false)
       return
     }
 
+    setDeleteTarget(null)
+    setAppointments(prev => prev.filter(appointment => appointment.id !== deleteTarget.id))
     await load()
+    setDeleting(false)
   }
 
   async function handleEnablePush() {
@@ -523,7 +537,7 @@ export default function StaffDashboard() {
     setPushStatus('')
 
     try {
-      const result = await sendTestStaffPushNotification(shopId)
+      const result = await sendTestStaffPushNotification(shopId, employeeId)
       setPushStatus(`Test bildirimi gonderildi. Giden cihaz: ${result.sent}`)
     } catch (pushError) {
       setPushStatus(pushError.message)
@@ -542,6 +556,25 @@ export default function StaffDashboard() {
 
   return (
     <div className="min-h-dvh bg-navy">
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-md">
+            <h2 className="font-display text-xl font-bold text-cream">Randevu silinsin mi?</h2>
+            <p className="mt-2 text-sm text-cream-muted">
+              {deleteTarget.customer_name} randevusu kalici olarak silinecek.
+            </p>
+            <div className="mt-5 flex flex-col gap-2 min-[420px]:flex-row">
+              <Button variant="secondary" className="flex-1" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+                Vazgec
+              </Button>
+              <Button variant="danger" className="flex-1" onClick={handleDeleteAppt} disabled={deleting}>
+                {deleting ? 'Siliniyor...' : 'Sil'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:items-center sm:p-4">
           <Card className="my-auto w-full max-w-2xl">
@@ -551,7 +584,15 @@ export default function StaffDashboard() {
             <div className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input label="Musteri Adi" value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} />
-                <Input label="Telefon" value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} />
+                <Input
+                  label="Telefon"
+                  value={form.customerPhone}
+                  onChange={e => setForm({ ...form, customerPhone: formatTurkishMobile(e.target.value) })}
+                  placeholder="05xx xxx xx xx"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  maxLength={14}
+                />
                 <Select label="Durum" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                   <option value="pending">Bekliyor</option>
                   <option value="confirmed">Onaylandi</option>
@@ -761,7 +802,7 @@ export default function StaffDashboard() {
                       {(appointment.employee_id === employeeId || !appointment.employee_id) && (
                         <>
                           <Button variant="secondary" size="sm" className="w-full" onClick={() => openEditModal(appointment)}>Duzenle</Button>
-                          <Button variant="danger" size="sm" className="w-full" onClick={() => handleDeleteAppt(appointment.id)}>Sil</Button>
+                          <Button variant="danger" size="sm" className="w-full" onClick={() => setDeleteTarget(appointment)}>Sil</Button>
                         </>
                       )}
                     </div>

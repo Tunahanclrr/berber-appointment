@@ -14,9 +14,13 @@ function required(name) {
   return value
 }
 
-async function sendPushes(supabase, subscriptions, payload) {
+async function sendPushes(supabase, subscriptions, payload, targetEmployeeId = null) {
+  const targetedSubscriptions = targetEmployeeId
+    ? (subscriptions || []).filter(subscription => subscription.employee_id === targetEmployeeId)
+    : subscriptions || []
+
   const uniqueSubscriptions = Array.from(
-    new Map((subscriptions || []).map(subscription => [subscription.endpoint, subscription])).values()
+    new Map(targetedSubscriptions.map(subscription => [subscription.endpoint, subscription])).values()
   )
 
   const results = await Promise.allSettled(
@@ -89,7 +93,7 @@ export async function handler(event) {
         body: 'Bildirim sistemi calisiyor. Yeni randevular bu cihaza gelecek.',
         tag: `test-${Date.now()}`,
         data: { url: '/staff/dashboard' },
-      }))
+      }), body.test_employee_id || null)
 
       return { statusCode: 200, headers, body: JSON.stringify({ ok: true, mode: 'test', ...result }) }
     }
@@ -133,7 +137,7 @@ export async function handler(event) {
         shopName: appointment.shops?.name,
         employeeName: appointment.employees?.name,
       },
-    }))
+    }), appointment.employee_id || null)
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true, ...result }) }
   } catch (error) {

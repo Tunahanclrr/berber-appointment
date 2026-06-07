@@ -118,10 +118,11 @@ export async function notifyAppointmentCreated(appointmentId) {
   }
 }
 
-export async function sendTestStaffPushNotification(shopId) {
+export async function sendTestStaffPushNotification(shopId, employeeId) {
   if (!shopId) throw new Error('Dukkan bilgisi eksik.')
+  if (!employeeId) throw new Error('Personel bilgisi eksik.')
 
-  const data = await invokePushSender({ test_shop_id: shopId })
+  const data = await invokePushSender({ test_shop_id: shopId, test_employee_id: employeeId })
   if (!data?.ok) throw new Error(data?.error || 'Test bildirimi gonderilemedi.')
   if (!data.sent) throw new Error('Kayitli bildirim cihazi bulunamadi. Once Bildirimleri Ac butonuna bas.')
 

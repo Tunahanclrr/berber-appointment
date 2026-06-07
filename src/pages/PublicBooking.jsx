@@ -15,6 +15,7 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Loading from '../components/ui/Loading'
 import { notifyAppointmentCreated } from '../lib/pushNotifications'
+import { formatTurkishMobile, getTurkishMobileError, normalizeTurkishMobile } from '../lib/phone'
 
 export default function PublicBooking() {
   const { shopId } = useParams()
@@ -106,6 +107,13 @@ export default function PublicBooking() {
     setError('')
     setSubmitting(true)
 
+    const phoneError = getTurkishMobileError(customerPhone)
+    if (phoneError) {
+      setError(phoneError)
+      setSubmitting(false)
+      return
+    }
+
     const endTime = addMinutes(startTime, selectedService.duration)
 
     const { data: createdAppointment, error: err } = await supabase.from('appointments').insert({
@@ -113,7 +121,7 @@ export default function PublicBooking() {
       employee_id: employeeId,
       service_id: serviceId,
       customer_name: customerName.trim(),
-      customer_phone: customerPhone.trim(),
+      customer_phone: normalizeTurkishMobile(customerPhone),
       appointment_date: date,
       start_time: startTime,
       end_time: endTime,
@@ -247,8 +255,11 @@ export default function PublicBooking() {
                 <Input
                   label="Telefon"
                   value={customerPhone}
-                  onChange={e => setCustomerPhone(e.target.value)}
+                  onChange={e => setCustomerPhone(formatTurkishMobile(e.target.value))}
                   placeholder="05xx xxx xx xx"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  maxLength={14}
                   required
                 />
               </Card>

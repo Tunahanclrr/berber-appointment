@@ -7,8 +7,10 @@ import { supabase } from '../../lib/supabase'
 import { addMinutes, formatPrice, todayISO } from '../../lib/time'
 import { computeAvailableSlots } from '../../lib/slots'
 import { notifyAppointmentCreated } from '../../lib/pushNotifications'
+import { getTurkishMobileError, normalizeTurkishMobile } from '../../lib/phone'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
+import PhoneInput from '../../components/ui/PhoneInput'
 import Card from '../../components/ui/Card'
 import Loading from '../../components/ui/Loading'
 
@@ -135,6 +137,12 @@ export default function BookingPage() {
       return
     }
 
+    const phoneError = getTurkishMobileError(customerPhone)
+    if (phoneError) {
+      setError(phoneError)
+      return
+    }
+
     setSubmitting(true)
     const endTime = addMinutes(startTime, totalDuration)
     const notes = [
@@ -148,7 +156,7 @@ export default function BookingPage() {
       employee_id: employeeId,
       service_id: selectedService.id,
       customer_name: customerName.trim(),
-      customer_phone: customerPhone.trim(),
+      customer_phone: normalizeTurkishMobile(customerPhone),
       appointment_date: date,
       start_time: startTime,
       end_time: endTime,
@@ -422,7 +430,12 @@ export default function BookingPage() {
               </Card>
 
               <Input label="Ad Soyad" value={customerName} onChange={e => setCustomerName(e.target.value)} required />
-              <Input label="Telefon" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="05xx xxx xx xx" required />
+              <PhoneInput
+                label="Telefon"
+                value={customerPhone}
+                onChange={setCustomerPhone}
+                required
+              />
 
               {error && <p className="text-sm text-red-400">{error}</p>}
 
