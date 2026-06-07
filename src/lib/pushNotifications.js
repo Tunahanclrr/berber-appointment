@@ -120,3 +120,17 @@ export async function notifyAppointmentCreated(appointmentId) {
     console.warn('Push bildirimi gonderilemedi:', error)
   }
 }
+
+export async function sendTestStaffPushNotification(shopId) {
+  if (!shopId) throw new Error('Dukkan bilgisi eksik.')
+
+  const { data, error } = await supabase.functions.invoke('send-appointment-push', {
+    body: { test_shop_id: shopId },
+  })
+
+  if (error) throw error
+  if (!data?.ok) throw new Error(data?.error || 'Test bildirimi gonderilemedi.')
+  if (!data.sent) throw new Error('Kayitli bildirim cihazi bulunamadi. Once Bildirimleri Ac butonuna bas.')
+
+  return data
+}

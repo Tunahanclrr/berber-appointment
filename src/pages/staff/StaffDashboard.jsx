@@ -16,6 +16,7 @@ import {
   enableStaffPushNotifications,
   getStaffPushSubscriptionStatus,
   notifyAppointmentCreated,
+  sendTestStaffPushNotification,
   showStaffAppointmentNotification,
 } from '../../lib/pushNotifications'
 
@@ -51,6 +52,7 @@ export default function StaffDashboard() {
   const [pushStatus, setPushStatus] = useState('')
   const [pushLoading, setPushLoading] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
+  const [testPushLoading, setTestPushLoading] = useState(false)
 
   const today = todayISO()
 
@@ -560,6 +562,20 @@ export default function StaffDashboard() {
     setPushLoading(false)
   }
 
+  async function handleTestPush() {
+    setTestPushLoading(true)
+    setPushStatus('')
+
+    try {
+      const result = await sendTestStaffPushNotification(shopId)
+      setPushStatus(`Test bildirimi gonderildi. Giden cihaz: ${result.sent}`)
+    } catch (pushError) {
+      setPushStatus(pushError.message)
+    }
+
+    setTestPushLoading(false)
+  }
+
   async function handleLogout() {
     await supabase.rpc('employee_logout', { p_token: token })
     clearSession()
@@ -681,6 +697,9 @@ export default function StaffDashboard() {
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Button variant="secondary" size="sm" onClick={handleEnablePush} disabled={pushLoading || pushEnabled}>
               {pushLoading ? 'Aciliyor...' : pushEnabled ? 'Bildirimler Acik' : 'Bildirimleri Ac'}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleTestPush} disabled={testPushLoading || !pushEnabled}>
+              {testPushLoading ? 'Gonderiliyor...' : 'Test Bildirimi'}
             </Button>
             <Button size="sm" onClick={openAddModal}>+ Randevu Ekle</Button>
             <Button variant="secondary" size="sm" onClick={handleLogout}>Cikis</Button>

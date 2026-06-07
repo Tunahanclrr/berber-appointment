@@ -7,17 +7,55 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!
-const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!
-const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:destek@berberrandevu.com'
+function requireEnv(name: string) {
+  const value = Deno.env.get(name)
+  if (!value) throw new Error(`${name} secret eksik`)
+  return value
+}
 
-webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
+async function sendPushes(admin: ReturnType<typeof createClient>, subscriptions: any[], payload: string) {
+  const relatedSubscriptions = Array.from(
+    new Map((subscriptions || []).map(subscription => [subscription.endpoint, subscription])).values()
+  )
 
-const admin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false },
-})
+  const results = await Promise.allSettled(
+    relatedSubscriptions.map(subscription =>
+      webpush.sendNotification({
+        endpoint: subscription.endpoint,
+        keys: {
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
+        },
+      }, payload).catch(error => {
+        console.error('Push send failed', {
+          subscriptionId: subscription.id,
+          statusCode: error?.statusCode,
+          body: error?.body,
+          message: error?.message,
+        })
+        throw error
+      })
+    )
+  )
+
+  const expiredIds = results
+    .map((result, index) => ({ result, subscription: relatedSubscriptions[index] }))
+    .filter(({ result }) =>
+      result.status === 'rejected' &&
+      (result.reason?.statusCode === 404 || result.reason?.statusCode === 410)
+    )
+    .map(({ subscription }) => subscription.id)
+
+  if (expiredIds.length > 0) {
+    await admin.from('push_subscriptions').delete().in('id', expiredIds)
+  }
+
+  return {
+    total: relatedSubscriptions.length,
+    sent: results.filter(result => result.status === 'fulfilled').length,
+    failed: results.filter(result => result.status === 'rejected').length,
+  }
+}
 
 serve(async req => {
   if (req.method === 'OPTIONS') {
@@ -25,7 +63,41 @@ serve(async req => {
   }
 
   try {
-    const { appointment_id } = await req.json()
+    const supabaseUrl = requireEnv('SUPABASE_URL')
+    const serviceRoleKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY')
+    const vapidPublicKey = requireEnv('VAPID_PUBLIC_KEY')
+    const vapidPrivateKey = requireEnv('VAPID_PRIVATE_KEY')
+    const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:destek@berberrandevu.com'
+
+    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey)
+
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    })
+
+    const body = await req.json()
+    const { appointment_id, test_shop_id } = body
+
+    if (test_shop_id) {
+      const { data: subscriptions, error: subscriptionsError } = await admin
+        .from('push_subscriptions')
+        .select('id, endpoint, p256dh, auth, employee_id')
+        .eq('shop_id', test_shop_id)
+
+      if (subscriptionsError) throw subscriptionsError
+
+      const result = await sendPushes(admin, subscriptions || [], JSON.stringify({
+        title: 'Test bildirimi',
+        body: 'Bildirim sistemi calisiyor. Yeni randevular bu cihaza gelecek.',
+        tag: `test-${Date.now()}`,
+        data: { url: '/staff/dashboard' },
+      }))
+
+      return new Response(JSON.stringify({ ok: true, mode: 'test', ...result }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     if (!appointment_id) throw new Error('appointment_id gerekli')
 
     const { data: appointment, error: appointmentError } = await admin
@@ -56,10 +128,6 @@ serve(async req => {
 
     if (subscriptionsError) throw subscriptionsError
 
-    const relatedSubscriptions = Array.from(
-      new Map((subscriptions || []).map(subscription => [subscription.endpoint, subscription])).values()
-    )
-
     const shopName = appointment.shops?.name || 'Dukkan'
     const employeeName = appointment.employees?.name || 'Personel'
     const serviceName = appointment.services?.name || 'Hizmet'
@@ -76,42 +144,11 @@ serve(async req => {
       },
     })
 
-    const results = await Promise.allSettled(
-      relatedSubscriptions.map(subscription =>
-        webpush.sendNotification({
-          endpoint: subscription.endpoint,
-          keys: {
-            p256dh: subscription.p256dh,
-            auth: subscription.auth,
-          },
-        }, payload).catch(error => {
-          console.error('Push send failed', {
-            subscriptionId: subscription.id,
-            statusCode: error?.statusCode,
-            body: error?.body,
-            message: error?.message,
-          })
-          throw error
-        })
-      )
-    )
-
-    const expiredIds = results
-      .map((result, index) => ({ result, subscription: relatedSubscriptions[index] }))
-      .filter(({ result }) =>
-        result.status === 'rejected' &&
-        (result.reason?.statusCode === 404 || result.reason?.statusCode === 410)
-      )
-      .map(({ subscription }) => subscription.id)
-
-    if (expiredIds.length > 0) {
-      await admin.from('push_subscriptions').delete().in('id', expiredIds)
-    }
+    const result = await sendPushes(admin, subscriptions || [], payload)
 
     return new Response(JSON.stringify({
       ok: true,
-      sent: results.filter(result => result.status === 'fulfilled').length,
-      failed: results.filter(result => result.status === 'rejected').length,
+      ...result,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
