@@ -112,10 +112,7 @@ export async function notifyAppointmentCreated(appointmentId) {
   if (!appointmentId) return
 
   try {
-    const { error } = await supabase.functions.invoke('send-appointment-push', {
-      body: { appointment_id: appointmentId },
-    })
-    if (error) throw error
+    await invokePushSender({ appointment_id: appointmentId })
   } catch (error) {
     console.warn('Push bildirimi gonderilemedi:', error)
   }
@@ -124,13 +121,28 @@ export async function notifyAppointmentCreated(appointmentId) {
 export async function sendTestStaffPushNotification(shopId) {
   if (!shopId) throw new Error('Dukkan bilgisi eksik.')
 
-  const { data, error } = await supabase.functions.invoke('send-appointment-push', {
-    body: { test_shop_id: shopId },
-  })
-
-  if (error) throw error
+  const data = await invokePushSender({ test_shop_id: shopId })
   if (!data?.ok) throw new Error(data?.error || 'Test bildirimi gonderilemedi.')
   if (!data.sent) throw new Error('Kayitli bildirim cihazi bulunamadi. Once Bildirimleri Ac butonuna bas.')
 
   return data
+}
+
+async function invokePushSender(body) {
+  try {
+    const response = await fetch('/.netlify/functions/send-appointment-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+    if (response.ok) return await response.json()
+
+    const data = await response.json().catch(() => null)
+    throw new Error(data?.error || `Netlify function hata verdi: ${response.status}`)
+  } catch (netlifyError) {
+    const { data, error } = await supabase.functions.invoke('send-appointment-push', { body })
+    if (error) throw new Error(`${netlifyError.message}. Supabase Edge Function: ${error.message}`)
+    return data
+  }
 }
