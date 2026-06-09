@@ -53,7 +53,28 @@ export default function Dashboard() {
     }
 
     const todayData = todayRes.data || []
-    const activeTodayData = todayData.filter(a => a.status !== 'cancelled')
+    const phones = [...new Set(todayData.map(a => a.customer_phone).filter(Boolean))]
+    let noShowCounts = {}
+
+    if (phones.length > 0) {
+      const { data: noShows } = await supabase
+        .from('appointments')
+        .select('customer_phone')
+        .eq('shop_id', shop.id)
+        .eq('status', 'no_show')
+        .in('customer_phone', phones)
+
+      noShowCounts = (noShows || []).reduce((counts, item) => {
+        counts[item.customer_phone] = (counts[item.customer_phone] || 0) + 1
+        return counts
+      }, {})
+    }
+
+    const enrichedTodayData = todayData.map(appointment => ({
+      ...appointment,
+      customer_no_show_count: noShowCounts[appointment.customer_phone] || 0,
+    }))
+    const activeTodayData = enrichedTodayData.filter(a => a.status !== 'cancelled' && a.status !== 'no_show')
     const monthData = monthRes.data || []
     const employees = employeesRes.data || []
 
@@ -87,7 +108,7 @@ export default function Dashboard() {
       w.count = (weekAppts || []).filter(a => a.appointment_date === w.date).length
     })
 
-    setTodayAppts(todayData)
+    setTodayAppts(enrichedTodayData)
     setStats({ today: activeTodayData.length, customers: uniqueCustomers, revenue, occupancy })
     setEmployeeLoad(empLoad)
     setWeekChart(weekData)
@@ -241,12 +262,20 @@ export default function Dashboard() {
                   <span className="font-mono text-gold">{formatTime(a.start_time)}</span>
                   <span className="ml-3 text-cream">{a.customer_name}</span>
                   <span className="ml-2 text-sm text-cream-muted">{a.employees?.name} · {a.services?.name}</span>
+                  {a.customer_no_show_count >= 2 && (
+                    <p className="mt-1 text-xs font-medium text-orange-300">
+                      Risk: Bu numara daha once {a.customer_no_show_count} kez gelmedi.
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Badge status={a.status} />
                   {a.status === 'pending' && <Button size="sm" onClick={() => updateStatusAndNotify(a, 'confirmed')}>Onayla</Button>}
-                  {a.status === 'confirmed' && <Button size="sm" onClick={() => updateStatus(a.id, 'done')}>Tamamla</Button>}
-                  {a.status !== 'cancelled' && a.status !== 'done' && (
+                  {a.status === 'confirmed' && <Button size="sm" onClick={() => updateStatus(a.id, 'done')}>Geldi</Button>}
+                  {a.status !== 'cancelled' && a.status !== 'done' && a.status !== 'no_show' && (
+                    <Button variant="secondary" size="sm" onClick={() => updateStatus(a.id, 'no_show')}>Gelmedi</Button>
+                  )}
+                  {a.status !== 'cancelled' && a.status !== 'done' && a.status !== 'no_show' && (
                     <Button variant="secondary" size="sm" onClick={() => updateStatus(a.id, 'cancelled')}>Iptal</Button>
                   )}
                   <Button variant="secondary" size="sm" onClick={() => openWhatsApp(a)}>WhatsApp</Button>

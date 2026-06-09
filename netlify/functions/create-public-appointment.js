@@ -36,25 +36,6 @@ function isOverlapping(startA, endA, startB, endB) {
   return minutesOf(startA) < minutesOf(endB) && minutesOf(endA) > minutesOf(startB)
 }
 
-async function verifyTurnstile(token, remoteIp) {
-  const secret = required('TURNSTILE_SECRET_KEY')
-
-  const formData = new URLSearchParams()
-  formData.set('secret', secret)
-  formData.set('response', token || '')
-  if (remoteIp) formData.set('remoteip', remoteIp)
-
-  const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    body: formData,
-  })
-  const result = await response.json()
-
-  if (!result.success) {
-    throw new Error('Guvenlik dogrulamasi basarisiz. Sayfayi yenileyip tekrar dene.')
-  }
-}
-
 export async function handler(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: 'ok' }
@@ -66,15 +47,6 @@ export async function handler(event) {
 
   try {
     const body = JSON.parse(event.body || '{}')
-
-    if (body.website) {
-      throw new Error('Randevu istegi reddedildi.')
-    }
-
-    await verifyTurnstile(
-      body.turnstileToken,
-      event.headers['x-nf-client-connection-ip'] || event.headers['client-ip'] || event.headers['x-forwarded-for']
-    )
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
     const serviceRoleKey = required('SUPABASE_SERVICE_ROLE_KEY')
@@ -98,32 +70,6 @@ export async function handler(event) {
 
     if (!/^05\d{9}$/.test(customerPhone)) {
       throw new Error('Gecerli bir Turkiye cep telefonu gir.')
-    }
-
-    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
-    const { count: rapidCount, error: rapidError } = await supabase
-      .from('appointments')
-      .select('id', { count: 'exact', head: true })
-      .eq('shop_id', shopId)
-      .eq('customer_phone', customerPhone)
-      .gte('created_at', twoMinutesAgo)
-
-    if (rapidError) throw rapidError
-    if ((rapidCount || 0) >= 2) {
-      throw new Error('Cok hizli randevu denemesi yapildi. Lutfen biraz bekleyip tekrar dene.')
-    }
-
-    const { count: dailyCount, error: dailyError } = await supabase
-      .from('appointments')
-      .select('id', { count: 'exact', head: true })
-      .eq('shop_id', shopId)
-      .eq('customer_phone', customerPhone)
-      .eq('appointment_date', appointmentDate)
-      .neq('status', 'cancelled')
-
-    if (dailyError) throw dailyError
-    if ((dailyCount || 0) >= 5) {
-      throw new Error('Bu telefon numarasi ile bugun icin cok fazla randevu alindi. Lutfen dukkanla iletisime gec.')
     }
 
     const { data: employee, error: employeeError } = await supabase

@@ -16,6 +16,7 @@ import Employees from './pages/Employees'
 import Services from './pages/Services'
 import Appointments from './pages/Appointments'
 import Settings from './pages/Settings'
+import CustomerAppointment from './pages/CustomerAppointment'
 import BookSlugEntry from './pages/BookSlugEntry'
 import BookingPage from './pages/book/BookingPage'
 import StaffLogin from './pages/staff/StaffLogin'
@@ -43,6 +44,7 @@ export default function App() {
 
           <Route path="/book" element={<BookSlugEntry />} />
           <Route path="/book/:slug" element={<BookingPage />} />
+          <Route path="/appointment" element={<CustomerAppointment />} />
 
           <Route path="/staff/login" element={<StaffLogin />} />
           <Route path="/staff/login/:slug" element={<StaffLogin />} />

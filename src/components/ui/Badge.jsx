@@ -3,15 +3,17 @@ const styles = {
   confirmed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   done: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   completed: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  no_show: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
   cancelled: 'bg-red-500/15 text-red-400 border-red-500/30',
 }
 
 const labels = {
   pending: 'Bekliyor',
-  confirmed: 'Onaylandı',
-  done: 'Tamamlandı',
-  completed: 'Tamamlandı',
-  cancelled: 'İptal',
+  confirmed: 'Onaylandi',
+  done: 'Geldi',
+  completed: 'Geldi',
+  no_show: 'Gelmedi',
+  cancelled: 'Iptal',
 }
 
 export default function Badge({ status }) {

@@ -27,7 +27,20 @@ create table if not exists employee_sessions (
 
 -- Son eklenen randevulari ustte gostermek ve bildirimden gelen randevuyu takip etmek icin.
 alter table appointments add column if not exists created_at timestamptz default now();
+alter table appointments add column if not exists appointment_code text;
 create index if not exists appointments_shop_created_at_idx on appointments(shop_id, created_at desc);
+create unique index if not exists appointments_shop_code_idx on appointments(shop_id, appointment_code) where appointment_code is not null;
+
+update appointments
+set appointment_code = upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6))
+where appointment_code is null;
+
+alter table appointments alter column appointment_code set default upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6));
+
+-- Personel ozel calisma saatleri, mola ve izin altyapisi.
+alter table employees add column if not exists working_hours jsonb;
+alter table employees add column if not exists break_times jsonb default '[]'::jsonb;
+alter table employees add column if not exists time_off jsonb default '[]'::jsonb;
 
 -- PWA web push: personelin cihaz bildirim abonelikleri burada tutulur.
 create table if not exists push_subscriptions (
@@ -373,7 +386,7 @@ declare
   v_employee_id uuid;
   v_shop_id uuid;
 begin
-  if p_status not in ('confirmed', 'done', 'cancelled') then
+  if p_status not in ('confirmed', 'done', 'cancelled', 'no_show') then
     raise exception 'Gecersiz durum';
   end if;
 

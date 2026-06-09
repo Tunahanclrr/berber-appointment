@@ -88,7 +88,7 @@ export default function StaffDashboard() {
   }, [appointments, filterStatus, search, highlightedAppointmentId])
 
   const stats = useMemo(() => ({
-    today: appointments.filter(a => a.appointment_date === today && a.status !== 'cancelled').length,
+    today: appointments.filter(a => a.appointment_date === today && a.status !== 'cancelled' && a.status !== 'no_show').length,
     pending: appointments.filter(a => a.status === 'pending').length,
     confirmed: appointments.filter(a => a.status === 'confirmed').length,
     done: appointments.filter(a => a.status === 'done').length,
@@ -622,7 +622,8 @@ export default function StaffDashboard() {
                 <Select label="Durum" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                   <option value="pending">Bekliyor</option>
                   <option value="confirmed">Onaylandi</option>
-                  <option value="done">Tamamlandi</option>
+                  <option value="done">Geldi</option>
+                  <option value="no_show">Gelmedi</option>
                   <option value="cancelled">Iptal</option>
                 </Select>
                 <Input label="Tarih" type="date" value={form.appointmentDate} onChange={e => setForm({ ...form, appointmentDate: e.target.value })} />
@@ -769,7 +770,8 @@ export default function StaffDashboard() {
               <option value="">Tumu</option>
               <option value="pending">Bekliyor</option>
               <option value="confirmed">Onaylandi</option>
-              <option value="done">Tamamlandi</option>
+              <option value="done">Geldi</option>
+              <option value="no_show">Gelmedi</option>
               <option value="cancelled">Iptal</option>
             </Select>
             <Input label="Ara" value={search} onChange={e => setSearch(e.target.value)} placeholder="Isim, telefon, hizmet" />
@@ -837,9 +839,12 @@ export default function StaffDashboard() {
                         <Button size="sm" className="w-full" onClick={() => updateStatusAndNotify(appointment, 'confirmed')}>Onayla</Button>
                       )}
                       {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status === 'confirmed' && (
-                        <Button size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'done')}>Tamamla</Button>
+                        <Button size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'done')}>Geldi</Button>
                       )}
-                      {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status !== 'cancelled' && appointment.status !== 'done' && (
+                      {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status !== 'cancelled' && appointment.status !== 'done' && appointment.status !== 'no_show' && (
+                        <Button variant="secondary" size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'no_show')}>Gelmedi</Button>
+                      )}
+                      {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status !== 'cancelled' && appointment.status !== 'done' && appointment.status !== 'no_show' && (
                         <Button variant="secondary" size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'cancelled')}>Iptal</Button>
                       )}
                       <Button variant="secondary" size="sm" className="w-full" onClick={() => openWhatsApp(appointment)}>WhatsApp</Button>

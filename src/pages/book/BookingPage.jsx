@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, addDays } from 'date-fns'
@@ -28,9 +28,6 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [turnstileToken, setTurnstileToken] = useState('')
-  const [turnstileReady, setTurnstileReady] = useState(false)
-  const [website, setWebsite] = useState('')
 
   const [serviceIds, setServiceIds] = useState([])
   const [employeeId, setEmployeeId] = useState('')
@@ -44,9 +41,6 @@ export default function BookingPage() {
   const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
   const totalPrice = selectedServices.reduce((sum, service) => sum + (Number(service.price) || 0), 0)
   const selectedEmployee = employees.find(e => e.id === employeeId)
-  const turnstileRef = useRef(null)
-  const turnstileWidgetRef = useRef(null)
-  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
   const employeesForService = serviceIds.length > 0
     ? (() => {
@@ -130,52 +124,38 @@ export default function BookingPage() {
     loadBooked()
   }, [shop, date, employeeId])
 
-  useEffect(() => {
-    if (step !== 2 || !turnstileSiteKey || !turnstileRef.current) return
+  async function createAppointmentFallback() {
+    const normalizedPhone = normalizeTurkishMobile(customerPhone)
+    const endTime = addMinutes(startTime, totalDuration)
+    const notes = [
+      `Secilen hizmetler: ${selectedServices.map(service => service.name).join(', ')}`,
+      `Toplam sure: ${totalDuration} dk`,
+      `Toplam ucret: ${formatPrice(totalPrice)}`,
+    ].join('\n')
 
-    let cancelled = false
-    let intervalId = null
-
-    function renderTurnstile() {
-      if (cancelled || !window.turnstile || !turnstileRef.current || turnstileWidgetRef.current) return
-
-      turnstileWidgetRef.current = window.turnstile.render(turnstileRef.current, {
-        sitekey: turnstileSiteKey,
-        theme: 'dark',
-        callback: token => {
-          setTurnstileToken(token)
-          setTurnstileReady(true)
-        },
-        'expired-callback': () => {
-          setTurnstileToken('')
-          setTurnstileReady(false)
-        },
-        'error-callback': () => {
-          setTurnstileToken('')
-          setTurnstileReady(false)
-        },
+    const { data: createdAppointment, error: insertError } = await supabase
+      .from('appointments')
+      .insert({
+        shop_id: shop.id,
+        employee_id: employeeId,
+        service_id: selectedService.id,
+        customer_name: customerName.trim(),
+        customer_phone: normalizedPhone,
+        appointment_date: date,
+        start_time: startTime,
+        end_time: endTime,
+        status: 'pending',
+        notes,
       })
-    }
+      .select('id')
+      .single()
 
-    if (!document.querySelector('script[data-turnstile-script="true"]')) {
-      const script = document.createElement('script')
-      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
-      script.async = true
-      script.defer = true
-      script.dataset.turnstileScript = 'true'
-      script.onload = renderTurnstile
-      document.head.appendChild(script)
-    } else {
-      renderTurnstile()
-    }
+    if (insertError) throw insertError
 
-    intervalId = window.setInterval(renderTurnstile, 300)
-
-    return () => {
-      cancelled = true
-      window.clearInterval(intervalId)
+    return {
+      appointmentId: createdAppointment.id,
     }
-  }, [step, turnstileSiteKey])
+  }
 
   async function handleSubmit() {
     setError('')
@@ -196,44 +176,44 @@ export default function BookingPage() {
       return
     }
 
-    if (!turnstileSiteKey) {
-      setError('VITE_TURNSTILE_SITE_KEY Netlify environment icinde eksik.')
-      return
-    }
-
-    if (!turnstileToken) {
-      setError('Lutfen guvenlik dogrulamasini tamamla.')
-      return
-    }
-
     setSubmitting(true)
-    const response = await fetch('/.netlify/functions/create-public-appointment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        shopId: shop.id,
-        employeeId,
-        serviceIds,
-        customerName,
-        customerPhone: normalizeTurkishMobile(customerPhone),
-        appointmentDate: date,
-        startTime,
-        turnstileToken,
-        website,
-      }),
-    })
-    const result = await response.json()
 
-    if (!response.ok || !result.ok) {
-      setError(result.error || 'Randevu olusturulamadi.')
-      setTurnstileToken('')
-      setTurnstileReady(false)
-      if (window.turnstile && turnstileWidgetRef.current) window.turnstile.reset(turnstileWidgetRef.current)
-    } else {
+    try {
+      const response = await fetch('/.netlify/functions/create-public-appointment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopId: shop.id,
+          employeeId,
+          serviceIds,
+          customerName,
+          customerPhone: normalizeTurkishMobile(customerPhone),
+          appointmentDate: date,
+          startTime,
+        }),
+      })
+
+      const responseText = await response.text()
+      const result = responseText ? JSON.parse(responseText) : null
+
+      if (!response.ok || !result?.ok) {
+        if (response.status === 404) {
+          const fallbackResult = await createAppointmentFallback()
+          notifyAppointmentCreated(fallbackResult.appointmentId)
+          setSuccess(true)
+          return
+        }
+
+        throw new Error(result?.error || 'Randevu olusturulamadi.')
+      }
+
       notifyAppointmentCreated(result.appointmentId)
       setSuccess(true)
+    } catch (submitError) {
+      setError(submitError.message || 'Randevu olusturulamadi.')
+    } finally {
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   if (loading) return <Loading text="Dukkan yukleniyor..." />
@@ -499,23 +479,6 @@ export default function BookingPage() {
                 onChange={setCustomerPhone}
                 required
               />
-              <input
-                className="hidden"
-                tabIndex={-1}
-                autoComplete="off"
-                value={website}
-                onChange={e => setWebsite(e.target.value)}
-                aria-hidden="true"
-              />
-              <div className="rounded-xl border border-gold/10 bg-navy-light/70 p-3">
-                {turnstileSiteKey ? (
-                  <div ref={turnstileRef} className="min-h-[65px]" />
-                ) : (
-                  <p className="text-sm text-amber-300">
-                    VITE_TURNSTILE_SITE_KEY eksik. Cloudflare Turnstile site key Netlify environment icine eklenmeli.
-                  </p>
-                )}
-              </div>
 
               {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -523,7 +486,7 @@ export default function BookingPage() {
                 <Button variant="secondary" onClick={() => setStep(1)}>Geri</Button>
                 <Button
                   className="flex-1"
-                  disabled={submitting || !customerName || !customerPhone || !turnstileReady}
+                  disabled={submitting || !customerName || !customerPhone}
                   onClick={handleSubmit}
                 >
                   {submitting ? 'Aliniyor...' : 'Randevu Al'}

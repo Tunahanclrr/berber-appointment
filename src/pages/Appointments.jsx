@@ -54,6 +54,7 @@ export default function Appointments() {
     pending: appointments.filter(a => a.status === 'pending').length,
     confirmed: appointments.filter(a => a.status === 'confirmed').length,
     done: appointments.filter(a => a.status === 'done').length,
+    noShow: appointments.filter(a => a.status === 'no_show').length,
     cancelled: appointments.filter(a => a.status === 'cancelled').length,
   }), [appointments])
 
@@ -134,6 +135,26 @@ export default function Appointments() {
         a.customer_name?.toLowerCase().includes(q) ||
         a.customer_phone?.includes(q)
       )
+    }
+
+    const phones = [...new Set(result.map(a => a.customer_phone).filter(Boolean))]
+    if (phones.length > 0) {
+      const { data: noShows } = await supabase
+        .from('appointments')
+        .select('customer_phone')
+        .eq('shop_id', shop.id)
+        .eq('status', 'no_show')
+        .in('customer_phone', phones)
+
+      const noShowCounts = (noShows || []).reduce((counts, item) => {
+        counts[item.customer_phone] = (counts[item.customer_phone] || 0) + 1
+        return counts
+      }, {})
+
+      result = result.map(appointment => ({
+        ...appointment,
+        customer_no_show_count: noShowCounts[appointment.customer_phone] || 0,
+      }))
     }
 
     setAppointments(result)
@@ -400,6 +421,7 @@ export default function Appointments() {
                   <option value="pending">Bekliyor</option>
                   <option value="confirmed">Onaylandi</option>
                   <option value="done">Tamamlandi</option>
+                  <option value="no_show">Gelmedi</option>
                   <option value="cancelled">Iptal</option>
                 </Select>
               </div>
@@ -511,12 +533,13 @@ export default function Appointments() {
         </div>
       )}
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         {[
           { label: 'Toplam', value: summary.total },
           { label: 'Bekliyor', value: summary.pending },
           { label: 'Onayli', value: summary.confirmed },
-          { label: 'Tamam', value: summary.done },
+          { label: 'Geldi', value: summary.done },
+          { label: 'Gelmedi', value: summary.noShow },
           { label: 'Iptal', value: summary.cancelled },
         ].map(item => (
           <Card key={item.label} className="p-4">
@@ -554,10 +577,11 @@ export default function Appointments() {
           <Input label="Tarih" type="date" value={date} onChange={e => setDate(e.target.value)} />
           <Select label="Durum" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
             <option value="">Tumu</option>
-            <option value="pending">Bekliyor</option>
-            <option value="confirmed">Onaylandi</option>
-            <option value="done">Tamamlandi</option>
-            <option value="cancelled">Iptal</option>
+                  <option value="pending">Bekliyor</option>
+                  <option value="confirmed">Onaylandi</option>
+                  <option value="done">Geldi</option>
+                  <option value="no_show">Gelmedi</option>
+                  <option value="cancelled">Iptal</option>
           </Select>
           <Select label="Personel" value={filterEmployee} onChange={e => setFilterEmployee(e.target.value)}>
             <option value="">Tumu</option>
@@ -606,6 +630,11 @@ export default function Appointments() {
                     <Badge status={a.status} />
                   </div>
                   <p className="mt-1 font-medium text-cream">{a.customer_name}</p>
+                  {a.customer_no_show_count >= 2 && (
+                    <p className="mt-1 text-xs font-medium text-orange-300">
+                      Risk: Bu numara daha once {a.customer_no_show_count} kez gelmedi.
+                    </p>
+                  )}
                   <p className="text-sm text-cream-muted">
                     {a.customer_phone} - {a.employees?.name} - {a.services?.name}
                     {view === 'liste' && ` - ${a.appointment_date}`}
@@ -614,8 +643,11 @@ export default function Appointments() {
                 </div>
                 <div className="flex w-full flex-wrap gap-2 sm:w-auto">
                   {a.status === 'pending' && <Button size="sm" onClick={() => updateStatusAndNotify(a, 'confirmed')}>Onayla</Button>}
-                  {a.status === 'confirmed' && <Button size="sm" onClick={() => updateStatus(a.id, 'done')}>Tamamla</Button>}
-                  {a.status !== 'cancelled' && a.status !== 'done' && (
+                  {a.status === 'confirmed' && <Button size="sm" onClick={() => updateStatus(a.id, 'done')}>Geldi</Button>}
+                  {a.status !== 'cancelled' && a.status !== 'done' && a.status !== 'no_show' && (
+                    <Button variant="secondary" size="sm" onClick={() => updateStatus(a.id, 'no_show')}>Gelmedi</Button>
+                  )}
+                  {a.status !== 'cancelled' && a.status !== 'done' && a.status !== 'no_show' && (
                     <Button variant="secondary" size="sm" onClick={() => updateStatus(a.id, 'cancelled')}>Iptal</Button>
                   )}
                   <Button variant="secondary" size="sm" onClick={() => openWhatsApp(a)}>WhatsApp</Button>
