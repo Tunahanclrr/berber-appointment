@@ -97,7 +97,10 @@ export async function showStaffAppointmentNotification(appointment) {
       icon: '/favicon.svg',
       badge: '/favicon.svg',
       tag: `appointment-${appointment?.id || Date.now()}`,
-      data: { url: '/staff/dashboard', appointmentId: appointment?.id },
+      data: {
+        url: appointment?.id ? `/staff/dashboard?appointmentId=${appointment.id}` : '/staff/dashboard',
+        appointmentId: appointment?.id,
+      },
       requireInteraction: true,
     })
 

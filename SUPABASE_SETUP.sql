@@ -25,6 +25,10 @@ create table if not exists employee_sessions (
   created_at timestamptz default now()
 );
 
+-- Son eklenen randevulari ustte gostermek ve bildirimden gelen randevuyu takip etmek icin.
+alter table appointments add column if not exists created_at timestamptz default now();
+create index if not exists appointments_shop_created_at_idx on appointments(shop_id, created_at desc);
+
 -- PWA web push: personelin cihaz bildirim abonelikleri burada tutulur.
 create table if not exists push_subscriptions (
   id uuid primary key default gen_random_uuid(),
@@ -90,6 +94,22 @@ using (true);
 drop policy if exists "appointments_staff_dashboard_select" on appointments;
 create policy "appointments_staff_dashboard_select"
 on appointments for select
+using (true);
+
+drop policy if exists "appointments_public_insert" on appointments;
+create policy "appointments_public_insert"
+on appointments for insert
+with check (true);
+
+drop policy if exists "appointments_public_update" on appointments;
+create policy "appointments_public_update"
+on appointments for update
+using (true)
+with check (true);
+
+drop policy if exists "appointments_public_delete" on appointments;
+create policy "appointments_public_delete"
+on appointments for delete
 using (true);
 
 -- Staff PIN paneli auth user kullanmadigi icin push aboneligi kaydedebilmelidir.

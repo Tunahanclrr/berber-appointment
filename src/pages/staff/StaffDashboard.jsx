@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { addDays, format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
@@ -37,6 +37,7 @@ function emptyAppointment(employeeId = '') {
 
 export default function StaffDashboard() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { token, employeeId, employeeName, shopId, shopName, clearSession } = useStaffStore()
   const [appointments, setAppointments] = useState([])
   const [services, setServices] = useState([])
@@ -58,6 +59,7 @@ export default function StaffDashboard() {
   const [deleting, setDeleting] = useState(false)
 
   const today = todayISO()
+  const highlightedAppointmentId = searchParams.get('appointmentId')
 
   const filteredAppointments = useMemo(() => {
     let result = appointments
@@ -71,8 +73,19 @@ export default function StaffDashboard() {
         a.services?.name?.toLowerCase().includes(q)
       )
     }
-    return result
-  }, [appointments, filterStatus, search])
+    return [...result].sort((a, b) => {
+      if (highlightedAppointmentId) {
+        if (a.id === highlightedAppointmentId) return -1
+        if (b.id === highlightedAppointmentId) return 1
+      }
+
+      const createdDiff = new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      if (createdDiff) return createdDiff
+      const dateDiff = String(b.appointment_date || '').localeCompare(String(a.appointment_date || ''))
+      if (dateDiff) return dateDiff
+      return String(b.start_time || '').localeCompare(String(a.start_time || ''))
+    })
+  }, [appointments, filterStatus, search, highlightedAppointmentId])
 
   const stats = useMemo(() => ({
     today: appointments.filter(a => a.appointment_date === today && a.status !== 'cancelled').length,
@@ -145,6 +158,7 @@ export default function StaffDashboard() {
         id,
         employee_id,
         service_id,
+        created_at,
         customer_name,
         customer_phone,
         appointment_date,
@@ -159,8 +173,9 @@ export default function StaffDashboard() {
       .eq('employee_id', employeeId)
       .gte('appointment_date', dateFrom)
       .lte('appointment_date', dateTo)
-      .order('appointment_date')
-      .order('start_time')
+      .order('created_at', { ascending: false })
+      .order('appointment_date', { ascending: false })
+      .order('start_time', { ascending: false })
 
     if (queryError) throw queryError
     return (data || []).map(normalizeAppointment)
@@ -175,6 +190,7 @@ export default function StaffDashboard() {
         id,
         employee_id,
         service_id,
+        created_at,
         customer_name,
         customer_phone,
         appointment_date,
@@ -188,8 +204,9 @@ export default function StaffDashboard() {
       .eq('employee_id', employeeId)
       .gte('appointment_date', dateFrom)
       .lte('appointment_date', dateTo)
-      .order('appointment_date')
-      .order('start_time')
+      .order('created_at', { ascending: false })
+      .order('appointment_date', { ascending: false })
+      .order('start_time', { ascending: false })
 
     if (queryError) throw queryError
     return (data || []).map(normalizeAppointment)
@@ -203,6 +220,7 @@ export default function StaffDashboard() {
         shop_id,
         employee_id,
         service_id,
+        created_at,
         customer_name,
         customer_phone,
         appointment_date,
@@ -215,8 +233,9 @@ export default function StaffDashboard() {
       `)
       .gte('appointment_date', dateFrom)
       .lte('appointment_date', dateTo)
-      .order('appointment_date')
-      .order('start_time')
+      .order('created_at', { ascending: false })
+      .order('appointment_date', { ascending: false })
+      .order('start_time', { ascending: false })
 
     if (queryError) throw queryError
 
@@ -303,6 +322,13 @@ export default function StaffDashboard() {
   useEffect(() => {
     if (token) load()
   }, [token, employeeId, shopId, dateFrom, dateTo])
+
+  useEffect(() => {
+    if (!highlightedAppointmentId || loading) return
+
+    const appointmentCard = document.getElementById(`appointment-${highlightedAppointmentId}`)
+    appointmentCard?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [highlightedAppointmentId, filteredAppointments.length, loading])
 
   useEffect(() => {
     if (!token) return
@@ -765,8 +791,19 @@ export default function StaffDashboard() {
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {filteredAppointments.map(appointment => (
-                <div key={appointment.id} className="flex min-h-full flex-col rounded-lg border border-gold/10 bg-navy/50 p-4">
+              {filteredAppointments.map(appointment => {
+                const isHighlighted = appointment.id === highlightedAppointmentId
+
+                return (
+                <div
+                  id={`appointment-${appointment.id}`}
+                  key={appointment.id}
+                  className={`flex min-h-full flex-col rounded-lg border p-4 transition ${
+                    isHighlighted
+                      ? 'border-gold bg-gold/10 shadow-lg shadow-gold/10 ring-1 ring-gold/40'
+                      : 'border-gold/10 bg-navy/50'
+                  }`}
+                >
                   <div className="flex flex-1 flex-col gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -774,7 +811,14 @@ export default function StaffDashboard() {
                           <span className="block font-mono text-xl font-semibold text-gold">{formatTime(appointment.start_time)}</span>
                           <span className="text-sm text-cream-muted">{appointment.appointment_date}</span>
                         </div>
-                        <Badge status={appointment.status} />
+                        <div className="flex flex-col items-end gap-1">
+                          {isHighlighted && (
+                            <span className="rounded-full bg-gold/20 px-2 py-0.5 text-[11px] font-medium text-gold">
+                              Yeni bildirim
+                            </span>
+                          )}
+                          <Badge status={appointment.status} />
+                        </div>
                       </div>
                       <p className="mt-1 font-medium text-cream">{appointment.customer_name}</p>
                       <p className="text-sm text-cream-muted">{appointment.customer_phone}</p>
@@ -808,7 +852,7 @@ export default function StaffDashboard() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </Card>

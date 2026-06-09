@@ -104,8 +104,9 @@ export default function Appointments() {
       .from('appointments')
       .select('*, employees(name), services(name, duration, price)')
       .eq('shop_id', shop.id)
-      .order('appointment_date')
-      .order('start_time')
+      .order('created_at', { ascending: false })
+      .order('appointment_date', { ascending: false })
+      .order('start_time', { ascending: false })
 
     if (view === 'liste' || view === 'gunluk') {
       query = query.eq('appointment_date', date)
@@ -148,8 +149,9 @@ export default function Appointments() {
       .eq('shop_id', shop.id)
       .gte('appointment_date', todayISO())
       .neq('status', 'cancelled')
-      .order('appointment_date')
-      .order('start_time')
+      .order('created_at', { ascending: false })
+      .order('appointment_date', { ascending: false })
+      .order('start_time', { ascending: false })
       .limit(8)
 
     setUpcomingAppointments(data || [])
@@ -524,9 +526,9 @@ export default function Appointments() {
         ))}
       </div>
 
-      <Card title="Yaklasan Randevular">
+      <Card title="Son Eklenen Randevular">
         {upcomingAppointments.length === 0 ? (
-          <p className="text-sm text-cream-muted">Yaklasan randevu yok.</p>
+          <p className="text-sm text-cream-muted">Yeni randevu yok.</p>
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
             {upcomingAppointments.map(a => (

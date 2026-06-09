@@ -132,7 +132,7 @@ export async function handler(event) {
       body: `${appointment.customer_name} - ${appointment.appointment_date} ${String(appointment.start_time).slice(0, 5)} - ${serviceName}`,
       tag: `appointment-${appointment.id}`,
       data: {
-        url: '/staff/dashboard',
+        url: `/staff/dashboard?appointmentId=${appointment.id}`,
         appointmentId: appointment.id,
         shopName: appointment.shops?.name,
         employeeName: appointment.employees?.name,
