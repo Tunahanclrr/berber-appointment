@@ -1,11 +1,32 @@
 import { supabase } from './supabase'
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
+let cachedPublicVapidKey = ''
 
 function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const rawData = window.atob(base64)
+  const cleanKey = String(base64String || '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\s/g, '')
+
+  if (!cleanKey) {
+    throw new Error('VITE_VAPID_PUBLIC_KEY bos gorunuyor.')
+  }
+
+  const padding = '='.repeat((4 - (cleanKey.length % 4)) % 4)
+  const base64 = (cleanKey + padding).replace(/-/g, '+').replace(/_/g, '/')
+  let rawData = ''
+
+  try {
+    rawData = window.atob(base64)
+  } catch {
+    throw new Error('VITE_VAPID_PUBLIC_KEY gecersiz. Public key tek satir olmali; private key buraya yazilmaz.')
+  }
+
+  if (rawData.length !== 65) {
+    throw new Error('VITE_VAPID_PUBLIC_KEY public key olmali. Private key veya eksik key girilmis gorunuyor.')
+  }
+
   const outputArray = new Uint8Array(rawData.length)
 
   for (let i = 0; i < rawData.length; i += 1) {
@@ -20,8 +41,29 @@ export function getPushSupportStatus() {
   if (!('PushManager' in window)) return { supported: false, reason: 'Bu tarayici push bildirim desteklemiyor.' }
   if (!('Notification' in window)) return { supported: false, reason: 'Bu tarayici bildirim desteklemiyor.' }
   if (!window.isSecureContext) return { supported: false, reason: 'Bildirim icin HTTPS gerekir. Localhost test icin uygundur.' }
-  if (!PUBLIC_VAPID_KEY) return { supported: false, reason: 'VITE_VAPID_PUBLIC_KEY .env icinde eksik.' }
   return { supported: true, reason: '' }
+}
+
+async function getPublicVapidKey() {
+  if (cachedPublicVapidKey) return cachedPublicVapidKey
+
+  const buildKey = String(PUBLIC_VAPID_KEY || '').trim()
+  if (buildKey) {
+    cachedPublicVapidKey = buildKey
+    return cachedPublicVapidKey
+  }
+
+  const response = await fetch('/.netlify/functions/public-config')
+  if (response.ok) {
+    const data = await response.json().catch(() => null)
+    const runtimeKey = String(data?.vapidPublicKey || '').trim()
+    if (runtimeKey) {
+      cachedPublicVapidKey = runtimeKey
+      return cachedPublicVapidKey
+    }
+  }
+
+  throw new Error('VAPID public key bulunamadi. Netlify environment icinde VAPID_PUBLIC_KEY veya VITE_VAPID_PUBLIC_KEY ekli olmali.')
 }
 
 export async function getStaffPushSubscriptionStatus() {
@@ -54,9 +96,10 @@ export async function enableStaffPushNotifications({ shopId, employeeId }) {
 
   let subscription = await registration.pushManager.getSubscription()
   if (!subscription) {
+    const publicVapidKey = await getPublicVapidKey()
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
+      applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
     })
   }
 
