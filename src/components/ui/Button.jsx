@@ -1,8 +1,8 @@
 const variants = {
-  primary: 'bg-gold hover:bg-gold-light text-navy font-semibold',
-  secondary: 'bg-transparent hover:bg-white/5 text-cream border border-gold/30',
+  primary: 'bg-gold hover:bg-gold-light text-white font-semibold shadow-sm shadow-blue-600/20',
+  secondary: 'bg-white hover:bg-blue-50 text-cream border border-gold/25',
   danger: 'bg-red-600/80 hover:bg-red-500 text-white',
-  ghost: 'bg-transparent hover:bg-white/5 text-cream-muted hover:text-cream',
+  ghost: 'bg-transparent hover:bg-blue-50 text-cream-muted hover:text-cream',
 }
 
 const sizes = {

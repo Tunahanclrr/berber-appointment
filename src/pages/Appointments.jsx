@@ -48,6 +48,7 @@ export default function Appointments() {
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [slotConflicts, setSlotConflicts] = useState([])
 
   const summary = useMemo(() => ({
     total: appointments.length,
@@ -62,6 +63,17 @@ export default function Appointments() {
   const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
   const totalPrice = selectedServices.reduce((sum, service) => sum + (Number(service.price) || 0), 0)
   const timeSlots = useMemo(() => generateTimeSlots(totalDuration || 30), [totalDuration])
+  const slotStates = useMemo(() => timeSlots.map(slot => {
+    const end = addMinutes(slot, totalDuration || 30)
+    const booked = slotConflicts.some(appointment => {
+      const appointmentStart = formatTime(appointment.start_time)
+      if (!appointmentStart) return false
+      const appointmentEnd = formatTime(appointment.end_time) || addMinutes(appointmentStart, appointment.services?.duration || 30)
+      return isOverlapping(slot, end, appointmentStart, appointmentEnd)
+    })
+
+    return { time: slot, booked }
+  }), [timeSlots, slotConflicts, totalDuration])
 
   function getServiceIdsFromAppointment(appointment) {
     const ids = new Set()
@@ -196,6 +208,38 @@ export default function Appointments() {
   useEffect(() => {
     if (shop) loadUpcoming()
   }, [shop])
+
+  useEffect(() => {
+    if (!showModal || !shop?.id || !form.employeeId || !form.appointmentDate) {
+      setSlotConflicts([])
+      return
+    }
+
+    let cancelled = false
+    let query = supabase
+      .from('appointments')
+      .select('id, start_time, end_time, services(duration)')
+      .eq('shop_id', shop.id)
+      .eq('employee_id', form.employeeId)
+      .eq('appointment_date', form.appointmentDate)
+      .neq('status', 'cancelled')
+
+    if (modalMode === 'edit' && form.id) query = query.neq('id', form.id)
+
+    query.then(({ data, error: slotError }) => {
+      if (cancelled) return
+      if (slotError) {
+        setError(slotError.message)
+        setSlotConflicts([])
+        return
+      }
+      setSlotConflicts(data || [])
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [showModal, shop?.id, form.employeeId, form.appointmentDate, form.id, modalMode])
 
   useEffect(() => {
     if (!shop?.id) return
@@ -434,18 +478,22 @@ export default function Appointments() {
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 min-[380px]:grid-cols-4 sm:grid-cols-6">
-                  {timeSlots.map(slot => (
+                  {slotStates.map(slot => (
                     <button
-                      key={slot}
+                      key={slot.time}
                       type="button"
-                      onClick={() => setForm({ ...form, startTime: slot })}
-                      className={`rounded-lg border px-2 py-2.5 font-mono text-sm transition ${
-                        form.startTime === slot
-                          ? 'border-gold bg-gold/15 text-gold'
-                          : 'border-gold/20 bg-navy-light text-cream hover:border-gold/50'
+                      disabled={slot.booked}
+                      onClick={() => !slot.booked && setForm({ ...form, startTime: slot.time })}
+                      className={`rounded-lg border px-2 py-2.5 font-mono text-sm transition disabled:cursor-not-allowed ${
+                        slot.booked
+                          ? 'border-red-500/40 bg-red-500/10 text-red-300 opacity-80'
+                          : form.startTime === slot.time
+                            ? 'border-gold bg-gold/15 text-gold'
+                            : 'border-gold/20 bg-navy-light text-cream hover:border-gold/50'
                       }`}
                     >
-                      {slot}
+                      <span className={`block ${slot.booked ? 'line-through' : ''}`}>{slot.time}</span>
+                      {slot.booked && <span className="mt-0.5 block text-[10px] font-sans">Dolu</span>}
                     </button>
                   ))}
                 </div>
@@ -644,9 +692,6 @@ export default function Appointments() {
                 <div className="flex w-full flex-wrap gap-2 sm:w-auto">
                   {a.status === 'pending' && <Button size="sm" onClick={() => updateStatusAndNotify(a, 'confirmed')}>Onayla</Button>}
                   {a.status === 'confirmed' && <Button size="sm" onClick={() => updateStatus(a.id, 'done')}>Geldi</Button>}
-                  {a.status !== 'cancelled' && a.status !== 'done' && a.status !== 'no_show' && (
-                    <Button variant="secondary" size="sm" onClick={() => updateStatus(a.id, 'no_show')}>Gelmedi</Button>
-                  )}
                   {a.status !== 'cancelled' && a.status !== 'done' && a.status !== 'no_show' && (
                     <Button variant="secondary" size="sm" onClick={() => updateStatus(a.id, 'cancelled')}>Iptal</Button>
                   )}

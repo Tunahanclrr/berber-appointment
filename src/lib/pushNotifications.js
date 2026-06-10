@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
+const PUSH_FUNCTION_URL = import.meta.env.VITE_PUSH_FUNCTION_URL
 let cachedPublicVapidKey = ''
 
 function urlBase64ToUint8Array(base64String) {
@@ -176,20 +177,41 @@ export async function sendTestStaffPushNotification(shopId, employeeId) {
 }
 
 async function invokePushSender(body) {
-  try {
-    const response = await fetch('/.netlify/functions/send-appointment-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+  const errors = []
+  const netlifyUrls = [
+    String(PUSH_FUNCTION_URL || '').trim(),
+    '/.netlify/functions/send-appointment-push',
+  ].filter(Boolean)
 
-    if (response.ok) return await response.json()
+  for (const url of netlifyUrls) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
 
-    const data = await response.json().catch(() => null)
-    throw new Error(data?.error || `Netlify function hata verdi: ${response.status}`)
-  } catch (netlifyError) {
-    const { data, error } = await supabase.functions.invoke('send-appointment-push', { body })
-    if (error) throw new Error(`${netlifyError.message}. Supabase Edge Function: ${error.message}`)
-    return data
+      const data = await response.json().catch(() => null)
+      if (response.ok) return data
+
+      errors.push(`${url}: ${data?.error || `HTTP ${response.status}`}`)
+    } catch (error) {
+      errors.push(`${url}: ${error.message}`)
+    }
   }
+
+  try {
+    const { data, error } = await supabase.functions.invoke('send-appointment-push', { body })
+    if (error) throw error
+    return data
+  } catch (error) {
+    errors.push(`Supabase Edge Function: ${error.message}`)
+  }
+
+  throw new Error([
+    'Push gonderici calismiyor.',
+    ...errors,
+    'Netlify kullanacaksan siteyi Netlify Functions ile deploy et veya localde netlify dev calistir.',
+    'Supabase kullanacaksan send-appointment-push Edge Function deploy edilmis ve secrets eklenmis olmali.',
+  ].join(' '))
 }

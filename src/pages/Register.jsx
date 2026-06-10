@@ -68,7 +68,7 @@ export default function Register() {
       <header className="relative z-10 mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 sm:py-6">
         <Link to="/" className="flex min-w-0 items-center gap-2">
           <span className="text-3xl">✂️</span>
-          <span className="truncate font-display text-xl font-bold text-cream sm:text-2xl">BerberRandevu</span>
+          <span className="truncate font-display text-xl font-bold text-cream sm:text-2xl">Randevu Zamanı</span>
         </Link>
         <Link to="/login" className="text-sm text-cream-muted transition hover:text-gold sm:text-base">
           Zaten hesabın var mı? Giriş yap

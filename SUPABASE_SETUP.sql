@@ -386,7 +386,7 @@ declare
   v_employee_id uuid;
   v_shop_id uuid;
 begin
-  if p_status not in ('confirmed', 'done', 'cancelled', 'no_show') then
+  if p_status not in ('confirmed', 'done', 'cancelled') then
     raise exception 'Gecersiz durum';
   end if;
 
@@ -409,8 +409,8 @@ begin
     and (employee_id = v_employee_id or employee_id is null);
 
   if not found then
-    raise exception 'Randevu bulunamadi';
-  end if;
+      raise exception 'Randevu bulunamadi';
+    end if;
 end;
 $$ language plpgsql security definer;
 

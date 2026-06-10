@@ -273,9 +273,6 @@ export default function Dashboard() {
                   {a.status === 'pending' && <Button size="sm" onClick={() => updateStatusAndNotify(a, 'confirmed')}>Onayla</Button>}
                   {a.status === 'confirmed' && <Button size="sm" onClick={() => updateStatus(a.id, 'done')}>Geldi</Button>}
                   {a.status !== 'cancelled' && a.status !== 'done' && a.status !== 'no_show' && (
-                    <Button variant="secondary" size="sm" onClick={() => updateStatus(a.id, 'no_show')}>Gelmedi</Button>
-                  )}
-                  {a.status !== 'cancelled' && a.status !== 'done' && a.status !== 'no_show' && (
                     <Button variant="secondary" size="sm" onClick={() => updateStatus(a.id, 'cancelled')}>Iptal</Button>
                   )}
                   <Button variant="secondary" size="sm" onClick={() => openWhatsApp(a)}>WhatsApp</Button>

@@ -27,7 +27,7 @@ export default function Layout() {
           <Link to="/panel" className="flex min-w-0 items-center gap-2">
             <span className="text-xl">✂️</span>
             <div className="min-w-0">
-              <p className="truncate font-bold leading-tight">{shop?.name || 'Berber Panel'}</p>
+              <p className="truncate font-bold leading-tight">{shop?.name || 'Randevu Zamanı Panel'}</p>
               <p className="truncate text-xs text-zinc-500">{user?.email}</p>
             </div>
           </Link>

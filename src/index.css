@@ -1,15 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-navy: #0A0F1E;
-  --color-navy-light: #111827;
-  --color-gold: #C9A84C;
-  --color-gold-light: #E8C97A;
-  --color-cream: #F5F0E8;
-  --color-cream-muted: #A8A095;
-  --font-display: 'Playfair Display', serif;
-  --font-body: 'Inter', sans-serif;
+  --color-navy: #F8FAFC;
+  --color-navy-light: #FFFFFF;
+  --color-gold: #2563EB;
+  --color-gold-light: #1D4ED8;
+  --color-cream: #111827;
+  --color-cream-muted: #64748B;
+  --font-display: 'Manrope', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
 
@@ -26,6 +26,7 @@ body {
   margin: 0;
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   background-color: var(--color-navy);
   color: var(--color-cream);
   min-width: 320px;
@@ -55,17 +56,18 @@ button, a {
 .font-mono { font-family: var(--font-mono); }
 
 .glass {
-  background: rgba(17, 24, 39, 0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(201, 168, 76, 0.15);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
 }
 
 .gold-gradient {
-  background: linear-gradient(135deg, #C9A84C 0%, #E8C97A 50%, #C9A84C 100%);
+  background: linear-gradient(135deg, #2563EB 0%, #38BDF8 50%, #1D4ED8 100%);
 }
 
 .text-gradient-gold {
-  background: linear-gradient(135deg, #C9A84C, #E8C97A);
+  background: linear-gradient(135deg, #2563EB, #0891B2);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

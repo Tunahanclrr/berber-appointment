@@ -1,12 +1,12 @@
 {
-  "name": "Berber Randevu",
-  "short_name": "Randevu",
-  "description": "Berber randevu ve personel paneli",
+  "name": "Randevu Zamanı",
+  "short_name": "Randevu Zamanı",
+  "description": "Randevu ve personel takip paneli",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0A0F1E",
-  "theme_color": "#0A0F1E",
+  "background_color": "#F8FAFC",
+  "theme_color": "#F8FAFC",
   "orientation": "portrait",
   "icons": [
     {

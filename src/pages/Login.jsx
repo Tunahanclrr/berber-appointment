@@ -40,7 +40,7 @@ export default function Login() {
       <header className="relative z-10 mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 sm:py-6">
         <Link to="/" className="flex min-w-0 items-center gap-2">
           <span className="text-3xl">✂️</span>
-          <span className="truncate font-display text-xl font-bold text-cream sm:text-2xl">BerberRandevu</span>
+          <span className="truncate font-display text-xl font-bold text-cream sm:text-2xl">Randevu Zamanı</span>
         </Link>
         <Link to="/register" className="text-sm text-cream-muted transition hover:text-gold sm:text-base">
           Hesabın yok mu? Kayıt ol
@@ -125,7 +125,7 @@ export default function Login() {
               <p className="text-sm text-cream-muted">
                 <span className="text-gold font-semibold">Şifreni mi unuttun?</span>
                 <br />
-                destek@berberrandevu.com ile iletişime geç
+                destek@randevuzamani.com ile iletişime geç
               </p>
             </div>
           </div>

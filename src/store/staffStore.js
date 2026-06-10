@@ -34,8 +34,7 @@ export const useStaffStore = create(
 
       isValid: () => {
         const state = useStaffStore.getState()
-        if (!state.token || !state.expiresAt) return false
-        return new Date(state.expiresAt) > new Date()
+        return Boolean(state.token)
       },
     }),
     { name: 'berber-staff-session' }

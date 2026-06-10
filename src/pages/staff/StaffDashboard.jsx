@@ -11,6 +11,7 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Loading from '../../components/ui/Loading'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { buildAppointmentMessage, buildWhatsAppUrl } from '../../lib/whatsapp'
 import {
   enableStaffPushNotifications,
@@ -57,6 +58,9 @@ export default function StaffDashboard() {
   const [testPushLoading, setTestPushLoading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [slotConflicts, setSlotConflicts] = useState([])
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const today = todayISO()
   const highlightedAppointmentId = searchParams.get('appointmentId')
@@ -98,6 +102,17 @@ export default function StaffDashboard() {
   const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
   const totalPrice = selectedServices.reduce((sum, service) => sum + (Number(service.price) || 0), 0)
   const timeSlots = useMemo(() => generateTimeSlots(totalDuration || 30), [totalDuration])
+  const slotStates = useMemo(() => timeSlots.map(slot => {
+    const end = addMinutes(slot, totalDuration || 30)
+    const booked = slotConflicts.some(appointment => {
+      const appointmentStart = formatTime(appointment.start_time)
+      if (!appointmentStart) return false
+      const appointmentEnd = formatTime(appointment.end_time) || addMinutes(appointmentStart, appointment.services?.duration || 30)
+      return isOverlapping(slot, end, appointmentStart, appointmentEnd)
+    })
+
+    return { time: slot, booked }
+  }), [timeSlots, slotConflicts, totalDuration])
 
   function getServiceIdsFromAppointment(appointment) {
     const ids = new Set()
@@ -322,6 +337,38 @@ export default function StaffDashboard() {
   useEffect(() => {
     if (token) load()
   }, [token, employeeId, shopId, dateFrom, dateTo])
+
+  useEffect(() => {
+    if (!showModal || !shopId || !employeeId || !form.appointmentDate) {
+      setSlotConflicts([])
+      return
+    }
+
+    let cancelled = false
+    let query = supabase
+      .from('appointments')
+      .select('id, start_time, end_time, services(duration)')
+      .eq('shop_id', shopId)
+      .eq('employee_id', employeeId)
+      .eq('appointment_date', form.appointmentDate)
+      .neq('status', 'cancelled')
+
+    if (modalMode === 'edit' && form.id) query = query.neq('id', form.id)
+
+    query.then(({ data, error: slotError }) => {
+      if (cancelled) return
+      if (slotError) {
+        setError(slotError.message)
+        setSlotConflicts([])
+        return
+      }
+      setSlotConflicts(data || [])
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [showModal, shopId, employeeId, form.appointmentDate, form.id, modalMode])
 
   useEffect(() => {
     if (!highlightedAppointmentId || loading) return
@@ -573,15 +620,26 @@ export default function StaffDashboard() {
   }
 
   async function handleLogout() {
+    setLoggingOut(true)
     await supabase.rpc('employee_logout', { p_token: token })
     clearSession()
     navigate('/staff/login')
+    setLoggingOut(false)
   }
 
   if (loading) return <Loading />
 
   return (
     <div className="min-h-dvh bg-navy">
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Cikis yapilsin mi?"
+        message="Personel hesabindan cikis yapmak istediginize emin misiniz?"
+        confirmText="Cikis yap"
+        loading={loggingOut}
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+      />
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <Card className="w-full max-w-md">
@@ -637,18 +695,22 @@ export default function StaffDashboard() {
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 min-[380px]:grid-cols-4 sm:grid-cols-6">
-                  {timeSlots.map(slot => (
+                  {slotStates.map(slot => (
                     <button
-                      key={slot}
+                      key={slot.time}
                       type="button"
-                      onClick={() => setForm({ ...form, startTime: slot })}
-                      className={`rounded-lg border px-2 py-2.5 font-mono text-sm transition ${
-                        form.startTime === slot
-                          ? 'border-gold bg-gold/15 text-gold'
-                          : 'border-gold/20 bg-navy-light text-cream hover:border-gold/50'
+                      disabled={slot.booked}
+                      onClick={() => !slot.booked && setForm({ ...form, startTime: slot.time })}
+                      className={`rounded-lg border px-2 py-2.5 font-mono text-sm transition disabled:cursor-not-allowed ${
+                        slot.booked
+                          ? 'border-red-500/40 bg-red-500/10 text-red-300 opacity-80'
+                          : form.startTime === slot.time
+                            ? 'border-gold bg-gold/15 text-gold'
+                            : 'border-gold/20 bg-navy-light text-cream hover:border-gold/50'
                       }`}
                     >
-                      {slot}
+                      <span className={`block ${slot.booked ? 'line-through' : ''}`}>{slot.time}</span>
+                      {slot.booked && <span className="mt-0.5 block text-[10px] font-sans">Dolu</span>}
                     </button>
                   ))}
                 </div>
@@ -726,7 +788,7 @@ export default function StaffDashboard() {
               {testPushLoading ? 'Gonderiliyor...' : 'Test Bildirimi'}
             </Button>
             <Button size="sm" onClick={openAddModal}>+ Randevu Ekle</Button>
-            <Button variant="secondary" size="sm" onClick={handleLogout}>Cikis</Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowLogoutConfirm(true)}>Cikis</Button>
           </div>
         </div>
       </header>
@@ -840,9 +902,6 @@ export default function StaffDashboard() {
                       )}
                       {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status === 'confirmed' && (
                         <Button size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'done')}>Geldi</Button>
-                      )}
-                      {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status !== 'cancelled' && appointment.status !== 'done' && appointment.status !== 'no_show' && (
-                        <Button variant="secondary" size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'no_show')}>Gelmedi</Button>
                       )}
                       {(appointment.employee_id === employeeId || !appointment.employee_id) && appointment.status !== 'cancelled' && appointment.status !== 'done' && appointment.status !== 'no_show' && (
                         <Button variant="secondary" size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'cancelled')}>Iptal</Button>

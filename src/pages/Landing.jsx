@@ -4,220 +4,179 @@ import Button from '../components/ui/Button'
 
 export default function Landing() {
   const features = [
-    { icon: '⏱️', title: 'Hızlı Randevu', desc: 'Müşteriler 2 dakikada online randevu alabilir' },
-    { icon: '👥', title: 'Personel Yönetimi', desc: 'Tüm personelini, PIN\'leri ve çalışma saatlerini yönet' },
-    { icon: '🔔', title: 'Otomatik Bildirimler', desc: 'Müşteri ve personel otomatik sms/bildirim alırlar' },
-    { icon: '📊', title: 'Analitik Dashboard', desc: 'Günlük, haftalık ve aylık istatistiklerini görüntüle' },
-    { icon: '💰', title: 'Hizmet & Fiyatlandırma', desc: 'Her hizmeti personel ve fiyatlarıyla ayarla' },
-    { icon: '📱', title: 'Çift Taraflı Erişim', desc: 'Müşteri ve personel mobil dostu arayüze erişir' },
+    { title: 'Akilli randevu akisi', desc: 'Musteriler musait saatleri gorur, uygun personeli secer ve hizlica randevu olusturur.' },
+    { title: 'Personel paneli', desc: 'Her personel kendi randevularini telefondan takip eder, durumlari kolayca gunceller.' },
+    { title: 'Anlik bildirimler', desc: 'Yeni randevular personele bildirim olarak duser, yogun saatlerde takip kolaylasir.' },
+    { title: 'Net isletme ozeti', desc: 'Gunluk randevu, doluluk ve musteri hareketlerini sade bir panelden izlersin.' },
+    { title: 'Hizmet ve fiyat yonetimi', desc: 'Sure, fiyat ve hizmetleri duzenleyip tum randevu akisini buna gore yonetirsin.' },
+    { title: 'Mobil uyumlu deneyim', desc: 'Dukkan sahibi, personel ve musteri icin telefonda rahat kullanilan ekranlar.' },
   ]
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  }
-
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  }
+  const roles = [
+    {
+      title: 'Dukkan Sahibi',
+      desc: 'Randevulari, personeli, hizmetleri ve musteri linkini tek panelden yonet.',
+      to: '/login',
+      cta: 'Panele Gir',
+    },
+    {
+      title: 'Personel',
+      desc: 'PIN ile giris yap, kendi programini ve yeni randevulari takip et.',
+      to: '/staff/login',
+      cta: 'Personel Girisi',
+    },
+    {
+      title: 'Musteri',
+      desc: 'Dukkan adini bul, musait saatlerden birini sec ve randevunu olustur.',
+      to: '/book',
+      cta: 'Randevu Al',
+    },
+  ]
 
   return (
-    <div className="min-h-screen bg-navy">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(201,168,76,0.08)_0%,_transparent_60%)]" />
-
-      {/* Header */}
-      <header className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 sm:py-6">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="text-3xl">✂️</span>
-          <span className="truncate font-display text-xl font-bold text-cream sm:text-2xl">BerberRandevu</span>
-        </div>
+    <div className="min-h-screen bg-navy text-cream">
+      <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 lg:px-8">
+        <Link to="/" className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold text-sm font-bold text-white shadow-sm shadow-blue-600/20">
+            RZ
+          </span>
+          <span className="truncate font-display text-xl font-extrabold tracking-tight sm:text-2xl">Randevu Zamanı</span>
+        </Link>
         <div className="flex flex-wrap gap-2">
           <Link to="/login">
-            <Button variant="secondary" size="sm">Dükkan Girişi</Button>
+            <Button variant="secondary" size="sm">Dukkan Girisi</Button>
           </Link>
           <Link to="/register">
-            <Button variant="primary" size="sm">Dükkan Aç</Button>
+            <Button variant="primary" size="sm">Dukkan Ac</Button>
           </Link>
         </div>
       </header>
 
-      <main className="relative z-10">
-        {/* Hero Section */}
-        <section className="mx-auto max-w-6xl px-4 pb-14 pt-8 sm:px-6 sm:pb-20 sm:pt-12">
+      <main>
+        <section className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-14 pt-8 sm:px-6 sm:pb-20 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:pt-14">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center"
+            transition={{ duration: 0.5 }}
           >
-            <div className="inline-block rounded-full bg-gold/10 px-4 py-2 mb-6">
-              <p className="text-sm text-gold">Türkiye'deki Berberler İçin #1 Çözüm</p>
-            </div>
-            <h1 className="font-display text-4xl font-bold leading-tight text-cream sm:text-5xl md:text-7xl">
-              Randevu Yönetimi<br />
-              <span className="text-gradient-gold">Artık Bu Kadar Kolay</span>
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-cream-muted sm:text-xl">
-              Müşterileriniz 24/7 online randevu alsın, personeliniz kendi programını yönetsin,
-              siz tek panelden tüm dükkanı kontrol edin. Hiçbir yazılım tecrübesi gerekmez.
+            <p className="inline-flex rounded-full border border-gold/20 bg-blue-50 px-4 py-2 text-sm font-semibold text-gold">
+              Berberler ve randevulu calisan isletmeler icin modern takip sistemi
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-4">
+            <h1 className="mt-6 max-w-4xl font-display text-4xl font-extrabold leading-tight tracking-tight text-cream sm:text-5xl lg:text-6xl">
+              Randevu Zamanı ile gunluk akisini daha net yonet.
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-8 text-cream-muted sm:text-lg">
+              Musteri randevusu, personel programi, hizmet sureleri ve bildirimler tek yerde.
+              Acik, hizli ve telefonda rahat kullanilan bir panel.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 min-[420px]:flex-row">
               <Link to="/register">
-                <Button variant="primary" size="lg">30 Saniyede Başla</Button>
+                <Button size="lg" className="w-full min-[420px]:w-auto">Hemen Basla</Button>
               </Link>
               <Link to="/book">
-                <Button variant="secondary" size="lg">Demo Randevu Al</Button>
+                <Button variant="secondary" size="lg" className="w-full min-[420px]:w-auto">Demo Randevu Al</Button>
               </Link>
             </div>
           </motion.div>
 
-          {/* Stats */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="mt-12 grid gap-4 text-center sm:gap-8 md:grid-cols-3"
+            transition={{ duration: 0.5, delay: 0.12 }}
+            className="rounded-2xl border border-gold/10 bg-white p-4 shadow-xl shadow-slate-200/70 sm:p-6"
           >
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-cream">Bugunun Akisi</p>
+                  <p className="text-xs text-cream-muted">Canli randevu ozeti</p>
+                </div>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Aktif</span>
+              </div>
+              <div className="mt-5 space-y-3">
+                {[
+                  ['09:30', 'Sakal kesimi', 'Onaylandi'],
+                  ['10:00', 'Sac kesimi', 'Yeni'],
+                  ['11:30', 'Bakim paketi', 'Bildirim gitti'],
+                ].map(([time, service, status]) => (
+                  <div key={time} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-3 shadow-sm">
+                    <div>
+                      <p className="font-mono text-sm font-semibold text-gold">{time}</p>
+                      <p className="text-sm font-semibold text-cream">{service}</p>
+                    </div>
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-gold">{status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+              {[
+                ['18', 'Randevu'],
+                ['86%', 'Doluluk'],
+                ['4.9', 'Puan'],
+              ].map(([value, label]) => (
+                <div key={label} className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="font-display text-xl font-extrabold text-cream">{value}</p>
+                  <p className="mt-1 text-xs text-cream-muted">{label}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </section>
+
+        <section className="border-y border-slate-200 bg-white">
+          <div className="mx-auto grid max-w-7xl gap-4 px-4 py-8 text-center sm:grid-cols-3 sm:px-6 lg:px-8">
             {[
-              { number: '5000+', label: 'Aktif Dükkan' },
-              { number: '200K+', label: 'Aylık Randevu' },
-              { number: '99.9%', label: 'Uptime' },
-            ].map((stat, i) => (
-              <div key={i} className="glass rounded-xl p-5 sm:p-8">
-                <p className="font-display text-4xl font-bold text-gold">{stat.number}</p>
-                <p className="mt-2 text-cream-muted">{stat.label}</p>
+              ['24/7', 'Online randevu'],
+              ['Mobil', 'Personel kullanimi'],
+              ['Anlik', 'Bildirim takibi'],
+            ].map(([value, label]) => (
+              <div key={label} className="rounded-xl bg-slate-50 p-5">
+                <p className="font-display text-3xl font-extrabold text-gold">{value}</p>
+                <p className="mt-1 text-sm font-medium text-cream-muted">{label}</p>
               </div>
             ))}
-          </motion.div>
+          </div>
         </section>
 
-        {/* Features Section */}
-        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
-          <h2 className="mb-4 text-center font-display text-3xl font-bold text-cream sm:text-4xl">
-            Neler Sunuyoruz?
-          </h2>
-          <p className="mx-auto mb-10 max-w-2xl text-center text-cream-muted sm:mb-12">
-            Berberinizi modern çağa taşıyan tüm araçları bir yerde bulacaksınız
-          </p>
-          <motion.div
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="grid gap-4 sm:gap-8 md:grid-cols-2 lg:grid-cols-3"
-          >
-            {features.map((feature, i) => (
-              <motion.div key={i} variants={item} className="glass rounded-xl p-6 hover:border-gold/40 transition">
-                <span className="text-4xl">{feature.icon}</span>
-                <h3 className="mt-4 font-display text-lg font-semibold text-cream">{feature.title}</h3>
-                <p className="mt-2 text-sm text-cream-muted">{feature.desc}</p>
-              </motion.div>
+        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+          <div className="max-w-2xl">
+            <h2 className="font-display text-3xl font-extrabold tracking-tight text-cream sm:text-4xl">Isini kolaylastiran araclar</h2>
+            <p className="mt-3 leading-7 text-cream-muted">Karmasik ekranlar yerine, gun icinde gercekten ihtiyacin olan bilgiler.</p>
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map(feature => (
+              <article key={feature.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="font-display text-lg font-bold text-cream">{feature.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-cream-muted">{feature.desc}</p>
+              </article>
             ))}
-          </motion.div>
+          </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="glass rounded-2xl border border-gold/20 bg-gradient-to-br from-gold/20 to-gold/5 p-5 text-center sm:p-12"
-          >
-            <h3 className="font-display text-2xl font-bold text-cream sm:text-3xl">
-              Dükkanını Şimdi Aç
-            </h3>
-            <p className="mx-auto mt-4 max-w-2xl text-base text-cream-muted sm:text-lg">
-              İlk 3 ay tamamen ücretsiz. Kredi kartı bilgisi istenmez. 
-              Müşteriler hemen randevu almaya başlasın.
-            </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-4">
-              <Link to="/register">
-                <Button variant="primary" size="lg">Ücretsiz Başla</Button>
-              </Link>
-              <Link to="/">
-                <Button variant="secondary" size="lg">Detaylı Bilgi</Button>
-              </Link>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* User Roles */}
-        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
-          <h2 className="mb-10 text-center font-display text-3xl font-bold text-cream sm:mb-12 sm:text-4xl">
-            Her Biriniz İçin Ayrı Giriş
-          </h2>
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="grid gap-4 sm:gap-8 md:grid-cols-3"
-          >
-            {[
-              {
-                icon: '🏪',
-                title: 'Dükkan Sahibi',
-                desc: 'E-posta ve şifrenizle giriş yapın. Personel, hizmet, randevu ve istatistikleri tek yerden yönetin.',
-                features: ['Personel yönetimi', 'Hizmet fiyatlandırması', 'Müşteri takibi', 'İstatistikler'],
-                to: '/login',
-                cta: 'Panele Giriş',
-                primary: true,
-              },
-              {
-                icon: '👤',
-                title: 'Personel',
-                desc: '4 haneli PIN ile giriş yapın. Bugün ve yarınki randevularınızı görüp durumlarını güncelleyin.',
-                features: ['Kişisel takvim', 'Randevu detayları', 'Durumları güncelle', 'Müşteri notları'],
-                to: '/staff/login',
-                cta: 'Personel Girişi',
-              },
-              {
-                icon: '📅',
-                title: 'Müşteri',
-                desc: 'Berberinin adını yazın. Müsait saatleri görüp 1 dakikada randevu alın.',
-                features: ['Dükkan ara', 'Müsait saatler', 'Hızlı randevu', 'Bildirim al'],
-                to: '/book',
-                cta: 'Randevu Al',
-              },
-            ].map((card, i) => (
-              <motion.div
-                key={card.title}
-                whileHover={{ y: -8, transition: { duration: 0.2 } }}
-                className="glass group flex flex-col rounded-2xl p-5 transition hover:border-gold/40 sm:p-8"
-              >
-                <span className="text-4xl sm:text-5xl">{card.icon}</span>
-                <h3 className="mt-6 font-display text-2xl font-semibold text-cream">{card.title}</h3>
-                <p className="mt-3 text-cream-muted">{card.desc}</p>
-                <ul className="mt-6 space-y-2 flex-1">
-                  {card.features.map((feature, j) => (
-                    <li key={j} className="text-sm text-cream-muted flex items-center gap-2">
-                      <span className="text-gold">✓</span> {feature}
-                    </li>
-                  ))}
-                </ul>
-                <Link to={card.to} className="mt-6">
-                  <Button variant={card.primary ? 'primary' : 'secondary'} className="w-full">
-                    {card.cta}
+        <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 sm:pb-24 lg:px-8">
+          <div className="grid gap-4 md:grid-cols-3">
+            {roles.map(role => (
+              <article key={role.title} className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="font-display text-xl font-bold text-cream">{role.title}</h3>
+                <p className="mt-2 flex-1 text-sm leading-6 text-cream-muted">{role.desc}</p>
+                <Link to={role.to} className="mt-5">
+                  <Button variant={role.title === 'Dukkan Sahibi' ? 'primary' : 'secondary'} className="w-full">
+                    {role.cta}
                   </Button>
                 </Link>
-              </motion.div>
+              </article>
             ))}
-          </motion.div>
-        </section>
-
-        {/* Footer */}
-        <section className="border-t border-gold/10 mt-20 py-12">
-          <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
-            <p className="text-cream-muted">
-              © 2024 BerberRandevu. Tüm hakları saklıdır. • 
-              <span className="text-gold ml-2">📧 destek@berberrandevu.com</span>
-            </p>
           </div>
         </section>
       </main>
+
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-8 text-sm text-cream-muted sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <p>© 2026 Randevu Zamanı. Tum haklari saklidir.</p>
+          <p>destek@randevuzamani.com</p>
+        </div>
+      </footer>
     </div>
   )
 }
