@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useShop } from '../../hooks/useShop'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import BrandLogo from '../BrandLogo'
 
 const nav = [
   { to: '/dashboard', label: 'Ozet', icon: '📊', end: true },
@@ -44,7 +45,7 @@ export default function DashboardLayout() {
       <aside className="hidden w-64 shrink-0 flex-col border-r border-gold/10 bg-navy-light md:flex">
         <div className="border-b border-gold/10 p-5">
           <div className="flex items-center gap-2">
-            <span className="text-xl">RZ</span>
+            <BrandLogo size="sm" showText={false} />
             <div>
               <p className="font-display font-bold text-cream">{shop?.name || 'Randevu Zamani'}</p>
               <p className="text-xs text-cream-muted">{user?.email}</p>

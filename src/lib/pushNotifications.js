@@ -4,6 +4,10 @@ const PUBLIC_VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
 const PUSH_FUNCTION_URL = import.meta.env.VITE_PUSH_FUNCTION_URL
 let cachedPublicVapidKey = ''
 
+function isLocalDevHost() {
+  return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+}
+
 function urlBase64ToUint8Array(base64String) {
   const cleanKey = String(base64String || '')
     .trim()
@@ -138,8 +142,8 @@ export async function showStaffAppointmentNotification(appointment) {
 
     await registration.showNotification('Yeni randevu alindi', {
       body: body || 'Yeni bir randevu olusturuldu.',
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
+      icon: '/berber-logo-png.png',
+      badge: '/berber-logo-png.png',
       tag: `appointment-${appointment?.id || Date.now()}`,
       data: {
         url: appointment?.id ? `/staff/dashboard?appointmentId=${appointment.id}` : '/staff/dashboard',
@@ -157,6 +161,7 @@ export async function showStaffAppointmentNotification(appointment) {
 
 export async function notifyAppointmentCreated(appointmentId) {
   if (!appointmentId) return
+  if (isLocalDevHost() && !PUSH_FUNCTION_URL) return
 
   try {
     await invokePushSender({ appointment_id: appointmentId })
@@ -180,7 +185,7 @@ async function invokePushSender(body) {
   const errors = []
   const netlifyUrls = [
     String(PUSH_FUNCTION_URL || '').trim(),
-    '/.netlify/functions/send-appointment-push',
+    isLocalDevHost() ? '' : '/.netlify/functions/send-appointment-push',
   ].filter(Boolean)
 
   for (const url of netlifyUrls) {

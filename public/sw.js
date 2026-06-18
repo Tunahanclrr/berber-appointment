@@ -21,8 +21,8 @@ self.addEventListener('push', event => {
   const title = payload.title || 'Yeni randevu'
   const options = {
     body: payload.body || 'Yeni bir randevu olusturuldu.',
-    icon: '/favicon.svg',
-    badge: '/favicon.svg',
+    icon: '/berber-logo-png.png',
+    badge: '/berber-logo-png.png',
     tag: payload.tag || `appointment-${Date.now()}`,
     data: payload.data || { url: '/staff/dashboard' },
     requireInteraction: true,

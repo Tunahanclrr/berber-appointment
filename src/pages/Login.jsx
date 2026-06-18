@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
+import BrandLogo from '../components/BrandLogo'
 
 export default function Login() {
   const { user, loading, signIn } = useAuth()
@@ -38,10 +39,7 @@ export default function Login() {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(201,168,76,0.08)_0%,_transparent_60%)]" />
       
       <header className="relative z-10 mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 sm:py-6">
-        <Link to="/" className="flex min-w-0 items-center gap-2">
-          <span className="text-3xl">✂️</span>
-          <span className="truncate font-display text-xl font-bold text-cream sm:text-2xl">Randevu Zamanı</span>
-        </Link>
+        <Link to="/" className="flex min-w-0 items-center gap-2"><BrandLogo size="md" /></Link>
         <Link to="/register" className="text-sm text-cream-muted transition hover:text-gold sm:text-base">
           Hesabın yok mu? Kayıt ol
         </Link>
@@ -143,3 +141,4 @@ export default function Login() {
     </div>
   )
 }
+

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Button from '../components/ui/Button'
+import BrandLogo from '../components/BrandLogo'
 
 export default function Landing() {
   const features = [
@@ -37,10 +38,7 @@ export default function Landing() {
     <div className="min-h-screen bg-navy text-cream">
       <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 lg:px-8">
         <Link to="/" className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold text-sm font-bold text-white shadow-sm shadow-blue-600/20">
-            RZ
-          </span>
-          <span className="truncate font-display text-xl font-extrabold tracking-tight sm:text-2xl">Randevu Zamanı</span>
+          <BrandLogo size="md" />
         </Link>
         <div className="flex flex-wrap gap-2">
           <Link to="/login">
@@ -124,6 +122,34 @@ export default function Landing() {
           </motion.div>
         </section>
 
+        <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
+          <div className="grid gap-4 md:grid-cols-3">
+            {roles.map((role, index) => (
+              <motion.article
+                key={role.title}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.08 * index }}
+                className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-gold/30 hover:shadow-xl hover:shadow-blue-100/70"
+              >
+                <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[48px] bg-blue-50 transition group-hover:bg-blue-100" />
+                <div className="relative">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gold text-sm font-bold text-white">
+                    {index + 1}
+                  </span>
+                  <h3 className="mt-5 font-display text-xl font-extrabold text-cream">{role.title}</h3>
+                  <p className="mt-2 min-h-16 text-sm leading-6 text-cream-muted">{role.desc}</p>
+                  <Link to={role.to} className="mt-5 block">
+                    <Button variant={index === 0 ? 'primary' : 'secondary'} className="w-full">
+                      {role.cta}
+                    </Button>
+                  </Link>
+                </div>
+              </motion.article>
+            ))}
+          </div>
+        </section>
+
         <section className="border-y border-slate-200 bg-white">
           <div className="mx-auto grid max-w-7xl gap-4 px-4 py-8 text-center sm:grid-cols-3 sm:px-6 lg:px-8">
             {[
@@ -154,21 +180,6 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 sm:pb-24 lg:px-8">
-          <div className="grid gap-4 md:grid-cols-3">
-            {roles.map(role => (
-              <article key={role.title} className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="font-display text-xl font-bold text-cream">{role.title}</h3>
-                <p className="mt-2 flex-1 text-sm leading-6 text-cream-muted">{role.desc}</p>
-                <Link to={role.to} className="mt-5">
-                  <Button variant={role.title === 'Dukkan Sahibi' ? 'primary' : 'secondary'} className="w-full">
-                    {role.cta}
-                  </Button>
-                </Link>
-              </article>
-            ))}
-          </div>
-        </section>
       </main>
 
       <footer className="border-t border-slate-200 bg-white">

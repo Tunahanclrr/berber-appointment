@@ -13,8 +13,13 @@ import Input from '../../components/ui/Input'
 import PhoneInput from '../../components/ui/PhoneInput'
 import Card from '../../components/ui/Card'
 import Loading from '../../components/ui/Loading'
+import BrandLogo from '../../components/BrandLogo'
 
 const STEPS = ['Hizmet', 'Tarih & Saat', 'Onayla']
+
+function isLocalDevHost() {
+  return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+}
 
 export default function BookingPage() {
   const { slug } = useParams()
@@ -157,6 +162,21 @@ export default function BookingPage() {
     }
   }
 
+  function resetForAnotherAppointment() {
+    setSuccess(false)
+    setStep(0)
+    setError('')
+    setSubmitting(false)
+    setServiceIds([])
+    setEmployeeId('')
+    setDate(todayISO())
+    setStartTime('')
+    setCustomerName('')
+    setCustomerPhone('')
+    setBooked([])
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   async function handleSubmit() {
     setError('')
 
@@ -179,6 +199,13 @@ export default function BookingPage() {
     setSubmitting(true)
 
     try {
+      if (isLocalDevHost()) {
+        const fallbackResult = await createAppointmentFallback()
+        notifyAppointmentCreated(fallbackResult.appointmentId)
+        setSuccess(true)
+        return
+      }
+
       const response = await fetch('/.netlify/functions/create-public-appointment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -233,8 +260,13 @@ export default function BookingPage() {
     return (
       <div className="flex min-h-screen flex-col bg-navy">
         <header className="border-b border-gold/10 px-4 py-4 text-center">
-          <Link to="/book" className="absolute left-4 top-4 text-sm text-cream-muted hover:text-gold">Yeni Randevu</Link>
-          <h1 className="font-display text-xl font-bold text-cream">{shop.name}</h1>
+          <button type="button" onClick={resetForAnotherAppointment} className="absolute left-4 top-4 text-sm text-cream-muted hover:text-gold">
+            Yeni Randevu
+          </button>
+          <div className="flex justify-center">
+            <BrandLogo size="sm" />
+          </div>
+          <h1 className="mt-2 font-display text-xl font-bold text-cream">{shop.name}</h1>
         </header>
 
         <div className="flex flex-1 items-center justify-center px-4 py-20">
@@ -244,6 +276,9 @@ export default function BookingPage() {
             transition={{ duration: 0.3 }}
             className="glass w-full max-w-md rounded-2xl p-5 text-center sm:p-8"
           >
+            <div className="mb-5 flex justify-center">
+              <BrandLogo size="md" />
+            </div>
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/15 text-3xl text-emerald-300">
               OK
             </div>
@@ -277,7 +312,7 @@ export default function BookingPage() {
             </div>
 
             <div className="mt-8 flex flex-col gap-3">
-              <Link to="/book"><Button className="w-full">Baska Randevu Al</Button></Link>
+              <Button className="w-full" onClick={resetForAnotherAppointment}>Baska Randevu Al</Button>
               <Link to="/"><Button variant="secondary" className="w-full">Ana Sayfaya Don</Button></Link>
             </div>
           </motion.div>
@@ -290,7 +325,10 @@ export default function BookingPage() {
     <div className="flex min-h-screen flex-col bg-navy">
       <header className="sticky top-0 z-10 border-b border-gold/10 bg-navy/95 px-4 py-6 text-center backdrop-blur">
         <Link to="/book" className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-cream-muted transition hover:text-gold">Geri</Link>
-        <h1 className="font-display text-2xl font-bold text-cream">{shop.name}</h1>
+        <div className="flex justify-center">
+          <BrandLogo size="sm" />
+        </div>
+        <h1 className="mt-2 font-display text-2xl font-bold text-cream">{shop.name}</h1>
         <p className="mt-1 text-sm text-cream-muted">Online Randevu Sistemi</p>
       </header>
 
