@@ -14,6 +14,7 @@ import PhoneInput from '../../components/ui/PhoneInput'
 import Card from '../../components/ui/Card'
 import Loading from '../../components/ui/Loading'
 import BrandLogo from '../../components/BrandLogo'
+import { isLockedBookingPwa, rememberBookingPath } from '../../lib/pwa'
 
 const STEPS = ['Hizmet', 'Tarih & Saat', 'Onayla']
 
@@ -23,6 +24,7 @@ function isLocalDevHost() {
 
 export default function BookingPage() {
   const { slug } = useParams()
+  const bookingPwaLocked = isLockedBookingPwa()
   const [step, setStep] = useState(0)
   const [shop, setShop] = useState(null)
   const [services, setServices] = useState([])
@@ -78,6 +80,8 @@ export default function BookingPage() {
   })
 
   useEffect(() => {
+    rememberBookingPath(`/book/${slug}`)
+
     async function load() {
       const { data: shopData } = await supabase
         .from('shops')
@@ -313,7 +317,9 @@ export default function BookingPage() {
 
             <div className="mt-8 flex flex-col gap-3">
               <Button className="w-full" onClick={resetForAnotherAppointment}>Baska Randevu Al</Button>
-              <Link to="/"><Button variant="secondary" className="w-full">Ana Sayfaya Don</Button></Link>
+              {!bookingPwaLocked && (
+                <Link to="/"><Button variant="secondary" className="w-full">Ana Sayfaya Don</Button></Link>
+              )}
             </div>
           </motion.div>
         </div>
@@ -324,7 +330,9 @@ export default function BookingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-navy">
       <header className="sticky top-0 z-10 border-b border-gold/10 bg-navy/95 px-4 py-6 text-center backdrop-blur">
-        <Link to="/book" className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-cream-muted transition hover:text-gold">Geri</Link>
+        {!bookingPwaLocked && (
+          <Link to="/book" className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-cream-muted transition hover:text-gold">Geri</Link>
+        )}
         <div className="flex justify-center">
           <BrandLogo size="sm" />
         </div>

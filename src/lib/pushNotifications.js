@@ -8,6 +8,16 @@ function isLocalDevHost() {
   return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
 }
 
+function isIosDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+function isStandaloneWebApp() {
+  return window.navigator.standalone === true ||
+    window.matchMedia?.('(display-mode: standalone)').matches
+}
+
 function urlBase64ToUint8Array(base64String) {
   const cleanKey = String(base64String || '')
     .trim()
@@ -43,9 +53,22 @@ function urlBase64ToUint8Array(base64String) {
 
 export function getPushSupportStatus() {
   if (!('serviceWorker' in navigator)) return { supported: false, reason: 'Bu tarayici service worker desteklemiyor.' }
-  if (!('PushManager' in window)) return { supported: false, reason: 'Bu tarayici push bildirim desteklemiyor.' }
-  if (!('Notification' in window)) return { supported: false, reason: 'Bu tarayici bildirim desteklemiyor.' }
   if (!window.isSecureContext) return { supported: false, reason: 'Bildirim icin HTTPS gerekir. Localhost test icin uygundur.' }
+  if (isIosDevice() && !isStandaloneWebApp()) {
+    return {
+      supported: false,
+      reason: 'iPhone bildirimleri Safari sekmesinde calismaz. Safari Paylas butonundan "Ana Ekrana Ekle" de, sonra uygulamayi ana ekrandaki ikonundan acip Bildirimleri Ac butonuna bas.',
+    }
+  }
+  if (!('PushManager' in window)) {
+    return {
+      supported: false,
+      reason: isIosDevice()
+        ? 'iPhone icin iOS 16.4 veya ustu gerekir. Siteyi Ana Ekrana ekleyip ikonundan actigindan emin ol.'
+        : 'Bu tarayici push bildirim desteklemiyor.',
+    }
+  }
+  if (!('Notification' in window)) return { supported: false, reason: 'Bu tarayici bildirim desteklemiyor.' }
   return { supported: true, reason: '' }
 }
 
