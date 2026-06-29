@@ -40,8 +40,8 @@ export default function Login() {
       
       <header className="relative z-10 mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 sm:py-6">
         <Link to="/" className="flex min-w-0 items-center gap-2"><BrandLogo size="md" /></Link>
-        <Link to="/register" className="text-sm text-cream-muted transition hover:text-gold sm:text-base">
-          Hesabın yok mu? Kayıt ol
+        <Link to="/iletisim" className="text-sm text-cream-muted transition hover:text-gold sm:text-base">
+          Hesabin yok mu? Iletisime gec
         </Link>
       </header>
 
@@ -130,9 +130,9 @@ export default function Login() {
 
           <div className="mt-8 text-center">
             <p className="text-cream-muted mb-4">Dükkanın yok mu?</p>
-            <Link to="/register">
+            <Link to="/iletisim">
               <Button className="w-full">
-                Şimdi Dükkan Aç
+                Iletisime Gec
               </Button>
             </Link>
           </div>

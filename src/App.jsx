@@ -9,7 +9,7 @@ import DashboardLayout from './components/layout/DashboardLayout'
 import Loading from './components/ui/Loading'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
-import Register from './pages/Register'
+import ShopContact from './pages/ShopContact'
 import ShopSetup from './pages/ShopSetup'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
@@ -59,7 +59,8 @@ export default function App() {
             <Route path="/" element={<HomeRoute />} />
 
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/iletisim" element={<ShopContact />} />
+            <Route path="/register" element={<Navigate to="/iletisim" replace />} />
 
             <Route path="/book" element={<BookSlugEntry />} />
             <Route path="/book/:slug" element={<BookingPage />} />
@@ -85,7 +86,7 @@ export default function App() {
             </Route>
 
             <Route path="/giris" element={<Navigate to="/login" replace />} />
-            <Route path="/kayit" element={<Navigate to="/register" replace />} />
+            <Route path="/kayit" element={<Navigate to="/iletisim" replace />} />
             <Route path="/panel/*" element={<Navigate to="/dashboard" replace />} />
             <Route path="/randevu/:shopId" element={<Navigate to="/book" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />

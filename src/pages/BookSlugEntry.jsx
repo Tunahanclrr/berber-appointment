@@ -183,9 +183,9 @@ export default function BookSlugEntry() {
             <p className="text-cream-muted text-sm mb-4">
               Dükkan sahibi misin?
             </p>
-            <Link to="/register">
+            <Link to="/iletisim">
               <Button variant="secondary" className="w-full">
-                Dükkanını Aç
+                Iletisime Gec
               </Button>
             </Link>
           </div>

@@ -15,10 +15,10 @@ export default function Landing() {
 
   const roles = [
     {
-      title: 'Dukkan Sahibi',
-      desc: 'Randevulari, personeli, hizmetleri ve musteri linkini tek panelden yonet.',
-      to: '/login',
-      cta: 'Panele Gir',
+      title: 'Dukkan Olustur',
+      desc: 'Dukkan kaydi icin bizimle iletisime gec. Kurulumu veritabani uzerinden biz tamamlayalim.',
+      to: '/iletisim',
+      cta: 'Iletisime Gec',
     },
     {
       title: 'Personel',
@@ -44,8 +44,8 @@ export default function Landing() {
           <Link to="/login">
             <Button variant="secondary" size="sm">Dukkan Girisi</Button>
           </Link>
-          <Link to="/register">
-            <Button variant="primary" size="sm">Dukkan Ac</Button>
+          <Link to="/iletisim">
+            <Button variant="primary" size="sm">Iletisime Gec</Button>
           </Link>
         </div>
       </header>
@@ -68,8 +68,8 @@ export default function Landing() {
               Acik, hizli ve telefonda rahat kullanilan bir panel.
             </p>
             <div className="mt-8 flex flex-col gap-3 min-[420px]:flex-row">
-              <Link to="/register">
-                <Button size="lg" className="w-full min-[420px]:w-auto">Hemen Basla</Button>
+              <Link to="/iletisim">
+                <Button size="lg" className="w-full min-[420px]:w-auto">Dukkan Olusturmak Icin Iletisime Gec</Button>
               </Link>
               <Link to="/book">
                 <Button variant="secondary" size="lg" className="w-full min-[420px]:w-auto">Demo Randevu Al</Button>
@@ -139,14 +139,44 @@ export default function Landing() {
                   </span>
                   <h3 className="mt-5 font-display text-xl font-extrabold text-cream">{role.title}</h3>
                   <p className="mt-2 min-h-16 text-sm leading-6 text-cream-muted">{role.desc}</p>
-                  <Link to={role.to} className="mt-5 block">
-                    <Button variant={index === 0 ? 'primary' : 'secondary'} className="w-full">
-                      {role.cta}
-                    </Button>
-                  </Link>
+                  {role.external ? (
+                    <a href={role.to} className="mt-5 block">
+                      <Button variant="primary" className="w-full">
+                        {role.cta}
+                      </Button>
+                    </a>
+                  ) : (
+                    <Link to={role.to} className="mt-5 block">
+                      <Button variant="secondary" className="w-full">
+                        {role.cta}
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </motion.article>
             ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-gold/10 bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gold">Dukkan kaydi</p>
+                <h2 className="mt-2 font-display text-2xl font-extrabold text-cream">Dukkan olusturmak icin iletisime gecin</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-cream-muted">
+                  Yeni dukkan kurulumlarini manuel yapiyoruz. Telefonla veya Instagram uzerinden ulas, kaydini hazirlayalim.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 min-[420px]:flex-row md:shrink-0">
+                <a href="tel:+905551659502">
+                  <Button className="w-full min-[420px]:w-auto">0555 165 95 02</Button>
+                </a>
+                <a href="https://www.instagram.com/randevuzamani" target="_blank" rel="noreferrer">
+                  <Button variant="secondary" className="w-full min-[420px]:w-auto">@randevuzamani</Button>
+                </a>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -185,7 +215,7 @@ export default function Landing() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-8 text-sm text-cream-muted sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
           <p>© 2026 Randevu Zamanı. Tum haklari saklidir.</p>
-          <p>destek@randevuzamani.com</p>
+          <p>0555 165 95 02 · @randevuzamani</p>
         </div>
       </footer>
     </div>
