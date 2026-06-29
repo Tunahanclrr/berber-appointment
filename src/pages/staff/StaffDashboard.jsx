@@ -4,9 +4,10 @@ import { addDays, format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
 import { useStaffStore } from '../../store/staffStore'
-import { addMinutes, formatPrice, formatTime, generateTimeSlots, isOverlapping, todayISO } from '../../lib/time'
+import { addMinutes, formatPrice, formatTime, isOverlapping, todayISO } from '../../lib/time'
 import { getAppointmentDurationLabel, getAppointmentPriceLabel, getAppointmentPriceValue, getAppointmentServiceName } from '../../lib/appointmentSummary'
-import { Filter, Plus, X } from 'lucide-react'
+import { getEffectiveWorkingHours, getWorkingHoursForDate, generateSlots } from '../../lib/slots'
+import { Bell, Filter, Plus, X } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -38,12 +39,24 @@ function emptyAppointment(employeeId = '') {
   }
 }
 
+function addDaysISO(dateStr, days) {
+  const date = new Date(`${dateStr}T12:00:00`)
+  date.setDate(date.getDate() + days)
+  return format(date, 'yyyy-MM-dd')
+}
+
+function getAppointmentDateTime(appointment) {
+  return new Date(`${appointment.appointment_date}T${formatTime(appointment.start_time) || '00:00'}:00`)
+}
+
 export default function StaffDashboard() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { token, employeeId, employeeName, shopId, shopName, clearSession } = useStaffStore()
   const [appointments, setAppointments] = useState([])
   const [services, setServices] = useState([])
+  const [shopWorkingHours, setShopWorkingHours] = useState(null)
+  const [employeeWorkingHours, setEmployeeWorkingHours] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [dateFrom, setDateFrom] = useState(todayISO())
@@ -67,6 +80,23 @@ export default function StaffDashboard() {
 
   const today = todayISO()
   const highlightedAppointmentId = searchParams.get('appointmentId')
+
+  function setQuickRange(range) {
+    const todayDate = todayISO()
+    if (range === 'today') {
+      setDateFrom(todayDate)
+      setDateTo(todayDate)
+    } else if (range === 'week') {
+      setDateFrom(todayDate)
+      setDateTo(addDaysISO(todayDate, 6))
+    } else if (range === 'month') {
+      setDateFrom(todayDate)
+      setDateTo(addDaysISO(todayDate, 30))
+    } else {
+      setDateFrom('2000-01-01')
+      setDateTo('2099-12-31')
+    }
+  }
 
   const filteredAppointments = useMemo(() => {
     let result = appointments
@@ -100,10 +130,31 @@ export default function StaffDashboard() {
     done: appointments.filter(a => a.status === 'done').length,
   }), [appointments, today])
 
+  const reminderAppointments = useMemo(() => {
+    const now = new Date()
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    return appointments
+      .filter(appointment => ['pending', 'confirmed'].includes(appointment.status))
+      .filter(appointment => {
+        const appointmentTime = getAppointmentDateTime(appointment)
+        return appointmentTime >= now && appointmentTime <= tomorrow
+      })
+      .sort((a, b) => getAppointmentDateTime(a) - getAppointmentDateTime(b))
+      .slice(0, 6)
+  }, [appointments])
+
   const selectedServices = form.serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean)
   const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
   const totalPrice = selectedServices.reduce((sum, service) => sum + (Number(service.price) || 0), 0)
-  const timeSlots = useMemo(() => generateTimeSlots(totalDuration || 30), [totalDuration])
+  const timeSlots = useMemo(() => {
+    const duration = totalDuration || 30
+    const dayHours = getWorkingHoursForDate(
+      getEffectiveWorkingHours(shopWorkingHours, employeeWorkingHours),
+      form.appointmentDate
+    )
+    if (!dayHours?.open) return []
+    return generateSlots(dayHours.start, dayHours.end, 30).filter(slot => addMinutes(slot, duration) <= dayHours.end)
+  }, [shopWorkingHours, employeeWorkingHours, form.appointmentDate, totalDuration])
   const slotStates = useMemo(() => timeSlots.map(slot => {
     const end = addMinutes(slot, totalDuration || 30)
     const booked = slotConflicts.some(appointment => {
@@ -325,16 +376,33 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     if (!shopId) return
-    supabase
-      .from('services')
-      .select('id, name, duration, price')
-      .eq('shop_id', shopId)
-      .order('name')
-      .then(({ data, error: servicesError }) => {
-        if (servicesError) setError(servicesError.message)
-        setServices(data || [])
-      })
-  }, [shopId])
+    Promise.all([
+      supabase
+        .from('services')
+        .select('id, name, duration, price')
+        .eq('shop_id', shopId)
+        .order('name'),
+      supabase
+        .from('shops')
+        .select('working_hours')
+        .eq('id', shopId)
+        .maybeSingle(),
+      employeeId
+        ? supabase
+          .from('employees')
+          .select('working_hours')
+          .eq('id', employeeId)
+          .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]).then(([servicesRes, shopRes, employeeRes]) => {
+      if (servicesRes.error) setError(servicesRes.error.message)
+      if (shopRes.error) setError(shopRes.error.message)
+      if (employeeRes.error) setError(employeeRes.error.message)
+      setServices(servicesRes.data || [])
+      setShopWorkingHours(shopRes.data?.working_hours || null)
+      setEmployeeWorkingHours(employeeRes.data?.working_hours || null)
+    })
+  }, [shopId, employeeId])
 
   useEffect(() => {
     if (token) load()
@@ -843,7 +911,45 @@ export default function StaffDashboard() {
           ))}
         </div>
 
+        <Card title="Hatirlatmalar">
+          {reminderAppointments.length === 0 ? (
+            <p className="text-sm text-cream-muted">Onumuzdeki 24 saat icinde hatirlatilacak randevu yok.</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {reminderAppointments.map(appointment => (
+                <div key={appointment.id} className="rounded-lg border border-gold/10 bg-gold/5 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-cream">{appointment.customer_name}</p>
+                      <p className="mt-1 text-sm text-cream-muted">
+                        {appointment.appointment_date} - <span className="font-mono text-gold">{formatTime(appointment.start_time)}</span>
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-sm text-cream-muted">{getAppointmentServiceName(appointment)}</p>
+                    </div>
+                    <Bell className="h-5 w-5 shrink-0 text-gold" aria-hidden="true" />
+                  </div>
+                  <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={() => openWhatsApp(appointment, 'reminder_2h')}>
+                    WhatsApp Hatirlat
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         <Card className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {[
+              ['today', 'Bugun'],
+              ['week', 'Bu hafta'],
+              ['month', 'Bu ay'],
+              ['all', 'Tum randevular'],
+            ].map(([range, label]) => (
+              <Button key={range} type="button" variant="secondary" size="sm" onClick={() => setQuickRange(range)}>
+                {label}
+              </Button>
+            ))}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Input label="Baslangic" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
             <Input label="Bitis" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
@@ -935,6 +1041,7 @@ export default function StaffDashboard() {
                         <Button variant="secondary" size="sm" className="w-full" onClick={() => updateStatus(appointment.id, 'cancelled')}>Iptal</Button>
                       )}
                       <Button variant="secondary" size="sm" className="w-full" onClick={() => openWhatsApp(appointment)}>WhatsApp</Button>
+                      <Button variant="secondary" size="sm" className="w-full" onClick={() => openWhatsApp(appointment, 'reminder_2h')}>Hatirlat</Button>
                       {(appointment.employee_id === employeeId || !appointment.employee_id) && (
                         <>
                           <Button variant="secondary" size="sm" className="w-full" onClick={() => openEditModal(appointment)}>Duzenle</Button>

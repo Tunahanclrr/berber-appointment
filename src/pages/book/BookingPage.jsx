@@ -68,6 +68,7 @@ export default function BookingPage() {
     date,
     duration: totalDuration || 30,
     workingHours: shop?.working_hours,
+    employeeWorkingHours: selectedEmployee?.working_hours,
     bookedAppointments: booked,
     employeeId,
   })

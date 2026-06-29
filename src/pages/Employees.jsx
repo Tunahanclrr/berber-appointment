@@ -1,10 +1,21 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useShop } from '../hooks/useShop'
+import { DEFAULT_HOURS } from '../lib/slots'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Loading from '../components/ui/Loading'
+
+const DAYS = [
+  { key: 'monday', label: 'Pazartesi' },
+  { key: 'tuesday', label: 'Sali' },
+  { key: 'wednesday', label: 'Carsamba' },
+  { key: 'thursday', label: 'Persembe' },
+  { key: 'friday', label: 'Cuma' },
+  { key: 'saturday', label: 'Cumartesi' },
+  { key: 'sunday', label: 'Pazar' },
+]
 
 export default function Employees() {
   const { shop } = useShop()
@@ -58,6 +69,40 @@ export default function Employees() {
       await supabase.from('employee_services').insert({ employee_id: employeeId, service_id: serviceId })
     }
     await load()
+  }
+
+  function defaultHours() {
+    return shop?.working_hours || DEFAULT_HOURS
+  }
+
+  async function saveEmployeeHours(employeeId, nextHours) {
+    setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, working_hours: nextHours } : emp))
+    const { error: err } = await supabase.from('employees').update({ working_hours: nextHours }).eq('id', employeeId)
+    if (err) {
+      setError(err.message)
+      await load()
+    }
+  }
+
+  async function clearEmployeeHours(employeeId) {
+    setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, working_hours: null } : emp))
+    const { error: err } = await supabase.from('employees').update({ working_hours: null }).eq('id', employeeId)
+    if (err) {
+      setError(err.message)
+      await load()
+    }
+  }
+
+  function updateEmployeeHours(emp, dayKey, field, value) {
+    const base = emp.working_hours || defaultHours()
+    const nextHours = {
+      ...base,
+      [dayKey]: {
+        ...(base[dayKey] || DEFAULT_HOURS[dayKey]),
+        [field]: value,
+      },
+    }
+    saveEmployeeHours(emp.id, nextHours)
   }
 
   async function savePin() {
@@ -135,6 +180,64 @@ export default function Employees() {
                   })}
                 </div>
               )}
+
+              <div className="mt-5 border-t border-gold/10 pt-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-cream">Calisma saatleri</p>
+                    <p className="text-xs text-cream-muted">
+                      {emp.working_hours ? 'Bu personele ozel saatler kullaniliyor.' : 'Dukkan saatleri kullaniliyor.'}
+                    </p>
+                  </div>
+                  {emp.working_hours ? (
+                    <Button size="sm" variant="secondary" onClick={() => clearEmployeeHours(emp.id)}>
+                      Dukkan Saatlerini Kullan
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="secondary" onClick={() => saveEmployeeHours(emp.id, defaultHours())}>
+                      Ozel Saat Belirle
+                    </Button>
+                  )}
+                </div>
+
+                {emp.working_hours && (
+                  <div className="mt-3 space-y-2">
+                    {DAYS.map(({ key, label }) => {
+                      const day = emp.working_hours?.[key] || DEFAULT_HOURS[key]
+                      return (
+                        <div key={key} className="grid gap-2 rounded-lg border border-gold/10 p-2 text-sm sm:flex sm:flex-wrap sm:items-center">
+                          <label className="flex items-center gap-2 text-cream sm:w-28">
+                            <input
+                              type="checkbox"
+                              checked={day.open ?? false}
+                              onChange={e => updateEmployeeHours(emp, key, 'open', e.target.checked)}
+                              className="accent-gold"
+                            />
+                            {label}
+                          </label>
+                          {day.open && (
+                            <>
+                              <input
+                                type="time"
+                                value={day.start || '09:00'}
+                                onChange={e => updateEmployeeHours(emp, key, 'start', e.target.value)}
+                                className="min-h-10 rounded border border-gold/20 bg-navy-light px-2 py-1 text-base text-cream sm:text-sm"
+                              />
+                              <span className="hidden text-cream-muted sm:inline">-</span>
+                              <input
+                                type="time"
+                                value={day.end || '20:00'}
+                                onChange={e => updateEmployeeHours(emp, key, 'end', e.target.value)}
+                                className="min-h-10 rounded border border-gold/20 bg-navy-light px-2 py-1 text-base text-cream sm:text-sm"
+                              />
+                            </>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </Card>
           )
         })}

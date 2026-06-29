@@ -26,6 +26,8 @@ export function buildAppointmentMessage({ shopName, appointment, status = 'confi
     done: 'tamamlanmistir',
     cancelled: 'iptal edilmistir',
     pending: 'alinmistir',
+    reminder_24h: 'icin hatirlatmadir',
+    reminder_2h: 'icin hatirlatmadir',
   }[status] || 'guncellenmistir'
 
   const serviceName = getAppointmentServiceName(appointment)
@@ -35,7 +37,9 @@ export function buildAppointmentMessage({ shopName, appointment, status = 'confi
 
   return [
     `Merhaba ${appointment.customer_name},`,
-    `${shopName || 'Berber'} randevunuz ${statusText}.`,
+    status === 'reminder_24h' || status === 'reminder_2h'
+      ? `${shopName || 'Berber'} randevunuz ${statusText}.`
+      : `${shopName || 'Berber'} randevunuz ${statusText}.`,
     `Hizmet: ${serviceName}`,
     `Tarih: ${date}`,
     `Saat: ${time}`,

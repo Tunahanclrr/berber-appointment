@@ -36,6 +36,14 @@ function isOverlapping(startA, endA, startB, endB) {
   return minutesOf(startA) < minutesOf(endB) && minutesOf(endA) > minutesOf(startB)
 }
 
+const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+function getDayHours(workingHours, dateStr) {
+  const date = new Date(`${dateStr}T12:00:00`)
+  const key = DAY_KEYS[date.getDay()]
+  return workingHours?.[key]
+}
+
 export async function handler(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: 'ok' }
@@ -72,15 +80,23 @@ export async function handler(event) {
       throw new Error('Gecerli bir Turkiye cep telefonu gir.')
     }
 
-    const { data: employee, error: employeeError } = await supabase
-      .from('employees')
-      .select('id')
-      .eq('id', employeeId)
-      .eq('shop_id', shopId)
-      .eq('is_active', true)
-      .single()
+    const [{ data: employee, error: employeeError }, { data: shop, error: shopError }] = await Promise.all([
+      supabase
+        .from('employees')
+        .select('id, working_hours')
+        .eq('id', employeeId)
+        .eq('shop_id', shopId)
+        .eq('is_active', true)
+        .single(),
+      supabase
+        .from('shops')
+        .select('working_hours')
+        .eq('id', shopId)
+        .single(),
+    ])
 
     if (employeeError || !employee) throw new Error('Personel bulunamadi.')
+    if (shopError || !shop) throw new Error('Dukkan bulunamadi.')
 
     const { data: selectedServices, error: servicesError } = await supabase
       .from('services')
@@ -96,6 +112,11 @@ export async function handler(event) {
     const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
     const totalPrice = selectedServices.reduce((sum, service) => sum + (Number(service.price) || 0), 0)
     const endTime = addMinutes(startTime, totalDuration || 30)
+    const dayHours = getDayHours(employee.working_hours || shop.working_hours, appointmentDate)
+
+    if (!dayHours?.open || startTime < dayHours.start || endTime > dayHours.end) {
+      throw new Error('Secilen personel bu saatte calismiyor.')
+    }
 
     const { data: conflicts, error: conflictError } = await supabase
       .from('appointments')

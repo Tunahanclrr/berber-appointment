@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useShop } from '../hooks/useShop'
-import { addMinutes, formatPrice, formatTime, generateTimeSlots, isOverlapping, todayISO } from '../lib/time'
+import { addMinutes, formatPrice, formatTime, isOverlapping, todayISO } from '../lib/time'
 import { getAppointmentDurationLabel, getAppointmentPriceLabel, getAppointmentServiceName } from '../lib/appointmentSummary'
+import { getEffectiveWorkingHours, getWorkingHoursForDate, generateSlots } from '../lib/slots'
 import { Filter, Plus, X } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
@@ -14,7 +15,13 @@ import { buildAppointmentMessage, buildWhatsAppUrl } from '../lib/whatsapp'
 import { notifyAppointmentCreated } from '../lib/pushNotifications'
 import { formatTurkishMobile, getTurkishMobileError, normalizeTurkishMobile } from '../lib/phone'
 
-const VIEWS = ['tum', 'liste', 'gunluk', 'haftalik']
+const VIEWS = [
+  { key: 'son', label: 'Son eklenenler' },
+  { key: 'bugun', label: 'Bugun' },
+  { key: 'hafta', label: 'Bu hafta' },
+  { key: 'ay', label: 'Bu ay' },
+  { key: 'tum', label: 'Tumu' },
+]
 
 function emptyAppointment() {
   return {
@@ -37,7 +44,7 @@ export default function Appointments() {
   const [employees, setEmployees] = useState([])
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState('liste')
+  const [view, setView] = useState('bugun')
   const [date, setDate] = useState(todayISO())
   const [filterStatus, setFilterStatus] = useState('')
   const [filterEmployee, setFilterEmployee] = useState('')
@@ -63,9 +70,18 @@ export default function Appointments() {
   }), [appointments])
 
   const selectedServices = form.serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean)
+  const selectedEmployee = employees.find(employee => employee.id === form.employeeId)
   const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
   const totalPrice = selectedServices.reduce((sum, service) => sum + (Number(service.price) || 0), 0)
-  const timeSlots = useMemo(() => generateTimeSlots(totalDuration || 30), [totalDuration])
+  const timeSlots = useMemo(() => {
+    const duration = totalDuration || 30
+    const dayHours = getWorkingHoursForDate(
+      getEffectiveWorkingHours(shop?.working_hours, selectedEmployee?.working_hours),
+      form.appointmentDate
+    )
+    if (!dayHours?.open) return []
+    return generateSlots(dayHours.start, dayHours.end, 30).filter(slot => addMinutes(slot, duration) <= dayHours.end)
+  }, [shop?.working_hours, selectedEmployee?.working_hours, form.appointmentDate, totalDuration])
   const slotStates = useMemo(() => timeSlots.map(slot => {
     const end = addMinutes(slot, totalDuration || 30)
     const booked = slotConflicts.some(appointment => {
@@ -124,12 +140,16 @@ export default function Appointments() {
       .order('appointment_date', { ascending: false })
       .order('start_time', { ascending: false })
 
-    if (view === 'liste' || view === 'gunluk') {
-      query = query.eq('appointment_date', date)
-    } else if (view === 'haftalik') {
+    if (view === 'bugun') {
+      query = query.eq('appointment_date', todayISO())
+    } else if (view === 'hafta') {
       const weekEnd = new Date(date)
       weekEnd.setDate(weekEnd.getDate() + 6)
       query = query.gte('appointment_date', date).lte('appointment_date', weekEnd.toISOString().split('T')[0])
+    } else if (view === 'ay') {
+      const monthEnd = new Date(date)
+      monthEnd.setDate(monthEnd.getDate() + 30)
+      query = query.gte('appointment_date', date).lte('appointment_date', monthEnd.toISOString().split('T')[0])
     }
 
     if (filterStatus) query = query.eq('status', filterStatus)
@@ -196,7 +216,7 @@ export default function Appointments() {
   useEffect(() => {
     if (!shop) return
     Promise.all([
-      supabase.from('employees').select('id, name').eq('shop_id', shop.id).eq('is_active', true).order('name'),
+      supabase.from('employees').select('id, name, working_hours').eq('shop_id', shop.id).eq('is_active', true).order('name'),
       supabase.from('services').select('id, name, duration, price').eq('shop_id', shop.id).order('name'),
     ]).then(([empRes, svcRes]) => {
       setEmployees(empRes.data || [])
@@ -269,6 +289,11 @@ export default function Appointments() {
     setModalMode('add')
     setForm(emptyAppointment())
     setShowModal(true)
+  }
+
+  function setQuickView(nextView) {
+    setView(nextView)
+    if (nextView === 'bugun' || nextView === 'hafta' || nextView === 'ay') setDate(todayISO())
   }
 
   function openEditModal(appointment) {
@@ -577,15 +602,15 @@ export default function Appointments() {
             <Filter className="h-4 w-4" aria-hidden="true" />
             Filtrele
           </Button>
-          {VIEWS.map(v => (
+          {VIEWS.map(item => (
             <button
-              key={v}
-              onClick={() => setView(v)}
+              key={item.key}
+              onClick={() => setQuickView(item.key)}
               className={`min-h-9 flex-1 rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition sm:flex-none ${
-                view === v ? 'bg-gold/15 text-gold' : 'text-cream-muted hover:text-cream'
+                view === item.key ? 'bg-gold/15 text-gold' : 'text-cream-muted hover:text-cream'
               }`}
             >
-              {v === 'tum' ? 'tum randevular' : v}
+              {item.label}
             </button>
           ))}
           <Button size="sm" className="hidden sm:inline-flex" onClick={openAddModal}>
@@ -641,6 +666,19 @@ export default function Appointments() {
       </Card>
 
       <Card className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {[
+            ['son', 'Son eklenen'],
+            ['bugun', 'Bugun'],
+            ['hafta', 'Bu hafta'],
+            ['ay', 'Bu ay'],
+            ['tum', 'Tum randevular'],
+          ].map(([key, label]) => (
+            <Button key={key} type="button" variant="secondary" size="sm" onClick={() => setQuickView(key)}>
+              {label}
+            </Button>
+          ))}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Input label="Tarih" type="date" value={date} onChange={e => setDate(e.target.value)} />
           <Select label="Durum" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
@@ -661,7 +699,7 @@ export default function Appointments() {
 
       {loading ? <Loading /> : appointments.length === 0 ? (
         <Card><p className="text-sm text-cream-muted">Randevu bulunamadi.</p></Card>
-      ) : view === 'haftalik' ? (
+      ) : view === 'hafta' ? (
         <div className="overflow-x-auto">
           <div className="flex min-w-max gap-3">
             {employees.map(emp => (
@@ -709,7 +747,7 @@ export default function Appointments() {
                   )}
                   <p className="text-sm text-cream-muted">
                     {a.customer_phone} - {a.employees?.name} - {getAppointmentServiceName(a)}
-                    {view === 'liste' && ` - ${a.appointment_date}`}
+                    {view !== 'bugun' && ` - ${a.appointment_date}`}
                   </p>
                   <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg border border-gold/10 bg-gold/5 p-2 text-xs">
                     <div>
@@ -734,6 +772,7 @@ export default function Appointments() {
                     <Button variant="secondary" size="sm" onClick={() => updateStatus(a.id, 'cancelled')}>Iptal</Button>
                   )}
                   <Button variant="secondary" size="sm" onClick={() => openWhatsApp(a)}>WhatsApp</Button>
+                  <Button variant="secondary" size="sm" onClick={() => openWhatsApp(a, 'reminder_2h')}>Hatirlat</Button>
                   <Button variant="secondary" size="sm" onClick={() => openEditModal(a)}>Duzenle</Button>
                   <Button variant="danger" size="sm" onClick={() => setDeleteTarget(a)}>Sil</Button>
                 </div>

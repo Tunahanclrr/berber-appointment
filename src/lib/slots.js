@@ -23,6 +23,10 @@ export function getWorkingHoursForDate(workingHours, dateStr) {
   return hours[key] || DEFAULT_HOURS[key]
 }
 
+export function getEffectiveWorkingHours(shopWorkingHours, employeeWorkingHours) {
+  return employeeWorkingHours || shopWorkingHours || DEFAULT_HOURS
+}
+
 export function generateSlots(start, end, interval = 30) {
   const slots = []
   let current = start
@@ -46,8 +50,8 @@ function currentTimeHHMM() {
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 }
 
-export function computeAvailableSlots({ date, duration, workingHours, bookedAppointments, employeeId }) {
-  const dayHours = getWorkingHoursForDate(workingHours, date)
+export function computeAvailableSlots({ date, duration, workingHours, employeeWorkingHours, bookedAppointments, employeeId }) {
+  const dayHours = getWorkingHoursForDate(getEffectiveWorkingHours(workingHours, employeeWorkingHours), date)
 
   if (!dayHours.open) {
     return { slots: [], allSlots: [], closed: true }

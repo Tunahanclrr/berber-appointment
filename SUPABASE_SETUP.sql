@@ -28,8 +28,11 @@ create table if not exists employee_sessions (
 -- Son eklenen randevulari ustte gostermek ve bildirimden gelen randevuyu takip etmek icin.
 alter table appointments add column if not exists created_at timestamptz default now();
 alter table appointments add column if not exists appointment_code text;
+alter table appointments add column if not exists reminder_24h_sent_at timestamptz;
+alter table appointments add column if not exists reminder_2h_sent_at timestamptz;
 create index if not exists appointments_shop_created_at_idx on appointments(shop_id, created_at desc);
 create unique index if not exists appointments_shop_code_idx on appointments(shop_id, appointment_code) where appointment_code is not null;
+create index if not exists appointments_reminder_idx on appointments(appointment_date, status, reminder_24h_sent_at, reminder_2h_sent_at);
 
 update appointments
 set appointment_code = upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6))
