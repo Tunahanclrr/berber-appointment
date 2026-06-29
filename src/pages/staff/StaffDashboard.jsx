@@ -5,6 +5,8 @@ import { tr } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
 import { useStaffStore } from '../../store/staffStore'
 import { addMinutes, formatPrice, formatTime, generateTimeSlots, isOverlapping, todayISO } from '../../lib/time'
+import { getAppointmentDurationLabel, getAppointmentPriceLabel, getAppointmentPriceValue, getAppointmentServiceName } from '../../lib/appointmentSummary'
+import { Filter, Plus, X } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -48,6 +50,7 @@ export default function StaffDashboard() {
   const [dateTo, setDateTo] = useState(format(addDays(new Date(), 30), 'yyyy-MM-dd'))
   const [filterStatus, setFilterStatus] = useState('')
   const [search, setSearch] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState('add')
   const [form, setForm] = useState(() => emptyAppointment(employeeId))
@@ -73,8 +76,7 @@ export default function StaffDashboard() {
       result = result.filter(a =>
         a.customer_name?.toLowerCase().includes(q) ||
         a.customer_phone?.includes(q) ||
-        a.service_name?.toLowerCase().includes(q) ||
-        a.services?.name?.toLowerCase().includes(q)
+        getAppointmentServiceName(a).toLowerCase().includes(q)
       )
     }
     return [...result].sort((a, b) => {
@@ -157,8 +159,8 @@ export default function StaffDashboard() {
       ...appointment,
       service_id: appointment.service_id,
       employee_name: appointment.employee_name || appointment.employees?.name,
-      service_name: appointment.service_name || appointment.services?.name,
-      service_price: appointment.service_price ?? appointment.services?.price,
+      service_name: getAppointmentServiceName(appointment),
+      service_price: getAppointmentPriceValue(appointment),
     }
   }
 
@@ -660,12 +662,22 @@ export default function StaffDashboard() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:items-center sm:p-4">
-          <Card className="my-auto w-full max-w-2xl">
-            <h2 className="mb-4 font-display text-xl font-bold text-cream">
-              {modalMode === 'edit' ? 'Randevu Duzenle' : 'Randevu Ekle'}
-            </h2>
-            <div className="space-y-3">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+          <Card className="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-b-none p-0 sm:max-h-[calc(100dvh-2rem)] sm:max-w-2xl sm:rounded-xl" glass={false}>
+            <div className="flex items-center justify-between gap-3 border-b border-gold/10 px-4 py-3 sm:px-5">
+              <h2 className="font-display text-xl font-bold text-cream">
+                {modalMode === 'edit' ? 'Randevu Duzenle' : 'Randevu Ekle'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cream-muted transition hover:bg-blue-50 hover:text-cream"
+                aria-label="Kapat"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input label="Musteri Adi" value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} />
                 <Input
@@ -758,7 +770,7 @@ export default function StaffDashboard() {
                   placeholder="Randevu notu"
                 />
               </div>
-              <div className="flex flex-col gap-2 pt-2 min-[420px]:flex-row">
+              <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-gold/10 bg-navy-light px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[420px]:flex-row sm:-mx-5 sm:px-5">
                 <Button className="flex-1" onClick={handleSaveAppt} disabled={saving}>
                   {saving ? 'Kaydediliyor...' : modalMode === 'edit' ? 'Guncelle' : 'Ekle'}
                 </Button>
@@ -781,13 +793,20 @@ export default function StaffDashboard() {
             </p>
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Button variant="secondary" size="sm" className="w-full sm:hidden" onClick={() => setShowFilters(prev => !prev)}>
+              <Filter className="h-4 w-4" aria-hidden="true" />
+              Filtrele
+            </Button>
             <Button variant="secondary" size="sm" onClick={handleEnablePush} disabled={pushLoading || pushEnabled}>
               {pushLoading ? 'Aciliyor...' : pushEnabled ? 'Bildirimler Acik' : 'Bildirimleri Ac'}
             </Button>
             <Button variant="secondary" size="sm" onClick={handleTestPush} disabled={testPushLoading || !pushEnabled}>
               {testPushLoading ? 'Gonderiliyor...' : 'Test Bildirimi'}
             </Button>
-            <Button size="sm" onClick={openAddModal}>+ Randevu Ekle</Button>
+            <Button size="sm" className="hidden sm:inline-flex" onClick={openAddModal}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Randevu Ekle
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => setShowLogoutConfirm(true)}>Cikis</Button>
           </div>
         </div>
@@ -824,7 +843,7 @@ export default function StaffDashboard() {
           ))}
         </div>
 
-        <Card>
+        <Card className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Input label="Baslangic" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
             <Input label="Bitis" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
@@ -889,11 +908,20 @@ export default function StaffDashboard() {
                       {appointment.employee_name && (
                         <p className="text-sm text-cream-muted">Personel: {appointment.employee_name}</p>
                       )}
-                      {appointment.service_name && (
-                        <p className="text-sm text-cream-muted">
-                          {appointment.service_name} - {formatPrice(appointment.service_price)}
-                        </p>
-                      )}
+                      <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg border border-gold/10 bg-gold/5 p-2 text-xs">
+                        <div>
+                          <p className="text-cream-muted">Hizmetler</p>
+                          <p className="mt-0.5 line-clamp-2 font-medium text-cream">{getAppointmentServiceName(appointment)}</p>
+                        </div>
+                        <div>
+                          <p className="text-cream-muted">Sure</p>
+                          <p className="mt-0.5 font-mono font-medium text-cream">{getAppointmentDurationLabel(appointment) || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-cream-muted">Toplam</p>
+                          <p className="mt-0.5 font-semibold text-gold">{getAppointmentPriceLabel(appointment) || '-'}</p>
+                        </div>
+                      </div>
                       {appointment.notes && <p className="mt-2 text-sm text-cream-muted">{appointment.notes}</p>}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -920,6 +948,14 @@ export default function StaffDashboard() {
             </div>
           )}
         </Card>
+        <button
+          type="button"
+          onClick={openAddModal}
+          className="fixed bottom-6 right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gold text-white shadow-lg shadow-blue-600/25 transition hover:bg-gold-light sm:hidden"
+          aria-label="Randevu ekle"
+        >
+          <Plus className="h-6 w-6" aria-hidden="true" />
+        </button>
       </main>
     </div>
   )

@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import { supabase } from '../lib/supabase'
 import { useShop } from '../hooks/useShop'
 import { formatTime, todayISO } from '../lib/time'
+import { getAppointmentPriceValue, getAppointmentServiceName } from '../lib/appointmentSummary'
 import { buildAppointmentMessage, buildWhatsAppUrl } from '../lib/whatsapp'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
@@ -39,7 +40,7 @@ export default function Dashboard() {
         .order('start_time', { ascending: false }),
       supabase
         .from('appointments')
-        .select('customer_phone, services(price), status')
+        .select('customer_phone, notes, services(price), status')
         .eq('shop_id', shop.id)
         .gte('appointment_date', monthStart)
         .neq('status', 'cancelled'),
@@ -81,7 +82,7 @@ export default function Dashboard() {
     const uniqueCustomers = new Set(monthData.map(a => a.customer_phone)).size
     const revenue = monthData
       .filter(a => a.status === 'done')
-      .reduce((sum, a) => sum + (Number(a.services?.price) || 0), 0)
+      .reduce((sum, a) => sum + (getAppointmentPriceValue(a) || 0), 0)
 
     const totalSlots = employees.length * 22
     const occupancy = totalSlots > 0 ? Math.round((activeTodayData.length / totalSlots) * 100) : 0
@@ -261,7 +262,7 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <span className="font-mono text-gold">{formatTime(a.start_time)}</span>
                   <span className="ml-3 text-cream">{a.customer_name}</span>
-                  <span className="ml-2 text-sm text-cream-muted">{a.employees?.name} · {a.services?.name}</span>
+                  <span className="ml-2 text-sm text-cream-muted">{a.employees?.name} - {getAppointmentServiceName(a)}</span>
                   {a.customer_no_show_count >= 2 && (
                     <p className="mt-1 text-xs font-medium text-orange-300">
                       Risk: Bu numara daha once {a.customer_no_show_count} kez gelmedi.

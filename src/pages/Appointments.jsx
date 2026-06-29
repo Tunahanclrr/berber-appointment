@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useShop } from '../hooks/useShop'
 import { addMinutes, formatPrice, formatTime, generateTimeSlots, isOverlapping, todayISO } from '../lib/time'
+import { getAppointmentDurationLabel, getAppointmentPriceLabel, getAppointmentServiceName } from '../lib/appointmentSummary'
+import { Filter, Plus, X } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -40,6 +42,7 @@ export default function Appointments() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterEmployee, setFilterEmployee] = useState('')
   const [search, setSearch] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
   const [error, setError] = useState('')
 
   const [showModal, setShowModal] = useState(false)
@@ -439,12 +442,22 @@ export default function Appointments() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:items-center sm:p-4">
-          <Card className="my-auto w-full max-w-2xl">
-            <h2 className="mb-4 font-display text-xl font-bold text-cream">
-              {modalMode === 'edit' ? 'Randevu Duzenle' : 'Randevu Ekle'}
-            </h2>
-            <div className="space-y-3">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+          <Card className="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-b-none p-0 sm:max-h-[calc(100dvh-2rem)] sm:max-w-2xl sm:rounded-xl" glass={false}>
+            <div className="flex items-center justify-between gap-3 border-b border-gold/10 px-4 py-3 sm:px-5">
+              <h2 className="font-display text-xl font-bold text-cream">
+                {modalMode === 'edit' ? 'Randevu Duzenle' : 'Randevu Ekle'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cream-muted transition hover:bg-blue-50 hover:text-cream"
+                aria-label="Kapat"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input label="Musteri Adi" value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} />
                 <Input
@@ -541,7 +554,7 @@ export default function Appointments() {
                   placeholder="Randevu notu"
                 />
               </div>
-              <div className="flex flex-col gap-2 pt-2 min-[420px]:flex-row">
+              <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-gold/10 bg-navy-light px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[420px]:flex-row sm:-mx-5 sm:px-5">
                 <Button className="flex-1" onClick={handleSaveAppt} disabled={saving}>
                   {saving ? 'Kaydediliyor...' : modalMode === 'edit' ? 'Guncelle' : 'Ekle'}
                 </Button>
@@ -560,6 +573,10 @@ export default function Appointments() {
           <p className="text-cream-muted">Tum randevulari ekle, onayla, duzenle ve sil</p>
         </div>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <Button variant="secondary" size="sm" className="w-full sm:hidden" onClick={() => setShowFilters(prev => !prev)}>
+            <Filter className="h-4 w-4" aria-hidden="true" />
+            Filtrele
+          </Button>
           {VIEWS.map(v => (
             <button
               key={v}
@@ -571,7 +588,10 @@ export default function Appointments() {
               {v === 'tum' ? 'tum randevular' : v}
             </button>
           ))}
-          <Button size="sm" className="w-full sm:w-auto" onClick={openAddModal}>+ Randevu Ekle</Button>
+          <Button size="sm" className="hidden sm:inline-flex" onClick={openAddModal}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Randevu Ekle
+          </Button>
         </div>
       </div>
 
@@ -611,7 +631,7 @@ export default function Appointments() {
                     <Badge status={a.status} />
                   </div>
                   <p className="mt-1 font-medium text-cream">{a.customer_name}</p>
-                  <p className="text-sm text-cream-muted">{a.employees?.name} - {a.services?.name}</p>
+                  <p className="text-sm text-cream-muted">{a.employees?.name} - {getAppointmentServiceName(a)}</p>
                 </div>
                 <Button variant="secondary" size="sm" onClick={() => openEditModal(a)}>Duzenle</Button>
               </div>
@@ -620,7 +640,7 @@ export default function Appointments() {
         )}
       </Card>
 
-      <Card>
+      <Card className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Input label="Tarih" type="date" value={date} onChange={e => setDate(e.target.value)} />
           <Select label="Durum" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
@@ -656,6 +676,10 @@ export default function Appointments() {
                       </div>
                       <p className="mt-1 font-medium text-cream">{a.customer_name}</p>
                       <p className="text-cream-muted">{a.appointment_date}</p>
+                      <div className="mt-2 rounded-md border border-gold/10 bg-gold/5 p-2">
+                        <p className="line-clamp-2 text-cream">{getAppointmentServiceName(a)}</p>
+                        <p className="mt-1 font-mono text-gold">{getAppointmentDurationLabel(a) || '-'} - {getAppointmentPriceLabel(a) || '-'}</p>
+                      </div>
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         <Button size="sm" variant="secondary" onClick={() => openEditModal(a)}>Duzenle</Button>
                         <Button size="sm" variant="danger" onClick={() => setDeleteTarget(a)}>Sil</Button>
@@ -684,9 +708,23 @@ export default function Appointments() {
                     </p>
                   )}
                   <p className="text-sm text-cream-muted">
-                    {a.customer_phone} - {a.employees?.name} - {a.services?.name}
+                    {a.customer_phone} - {a.employees?.name} - {getAppointmentServiceName(a)}
                     {view === 'liste' && ` - ${a.appointment_date}`}
                   </p>
+                  <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg border border-gold/10 bg-gold/5 p-2 text-xs">
+                    <div>
+                      <p className="text-cream-muted">Hizmetler</p>
+                      <p className="mt-0.5 line-clamp-2 font-medium text-cream">{getAppointmentServiceName(a)}</p>
+                    </div>
+                    <div>
+                      <p className="text-cream-muted">Sure</p>
+                      <p className="mt-0.5 font-mono font-medium text-cream">{getAppointmentDurationLabel(a) || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-cream-muted">Toplam</p>
+                      <p className="mt-0.5 font-semibold text-gold">{getAppointmentPriceLabel(a) || '-'}</p>
+                    </div>
+                  </div>
                   {a.notes && <p className="mt-2 text-sm text-cream-muted">{a.notes}</p>}
                 </div>
                 <div className="flex w-full flex-wrap gap-2 sm:w-auto">
@@ -704,6 +742,14 @@ export default function Appointments() {
           ))}
         </div>
       )}
+      <button
+        type="button"
+        onClick={openAddModal}
+        className="fixed bottom-24 right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gold text-white shadow-lg shadow-blue-600/25 transition hover:bg-gold-light sm:hidden"
+        aria-label="Randevu ekle"
+      >
+        <Plus className="h-6 w-6" aria-hidden="true" />
+      </button>
     </div>
   )
 }

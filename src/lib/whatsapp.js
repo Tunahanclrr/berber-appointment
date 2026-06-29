@@ -1,4 +1,5 @@
 import { formatPrice, formatTime } from './time'
+import { getAppointmentPriceValue, getAppointmentServiceName } from './appointmentSummary'
 
 export function normalizeWhatsAppPhone(phone) {
   const digits = String(phone || '').replace(/\D/g, '')
@@ -27,9 +28,8 @@ export function buildAppointmentMessage({ shopName, appointment, status = 'confi
     pending: 'alinmistir',
   }[status] || 'guncellenmistir'
 
-  const servicesLine = appointment.notes?.match(/Secilen hizmetler:\s*(.+)/i)?.[1]
-  const serviceName = servicesLine || appointment.service_name || appointment.services?.name || 'Hizmet'
-  const price = appointment.service_price ?? appointment.services?.price
+  const serviceName = getAppointmentServiceName(appointment)
+  const price = getAppointmentPriceValue(appointment)
   const date = appointment.appointment_date
   const time = formatTime(appointment.start_time)
 

@@ -340,7 +340,7 @@ export default function BookingPage() {
         <p className="mt-1 text-sm text-cream-muted">Online Randevu Sistemi</p>
       </header>
 
-      <div className="mx-auto w-full max-w-lg flex-1 px-4 py-8">
+      <div className={`mx-auto w-full max-w-lg flex-1 px-4 py-8 ${selectedServices.length > 0 ? 'pb-32' : ''}`}>
         <div className="sticky top-20 -mx-4 mb-8 flex items-center justify-center gap-2 overflow-x-auto bg-navy/90 px-4 py-4">
           {STEPS.map((s, i) => (
             <div key={s} className="flex items-center gap-2">
@@ -542,6 +542,22 @@ export default function BookingPage() {
           )}
         </AnimatePresence>
       </div>
+      {selectedServices.length > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gold/10 bg-navy-light/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="mx-auto flex max-w-lg items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-cream">{selectedServices.map(service => service.name).join(', ')}</p>
+              <p className="mt-0.5 text-xs text-cream-muted">
+                {selectedServices.length} hizmet - <span className="font-mono">{totalDuration} dk</span>
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-xs text-cream-muted">Toplam</p>
+              <p className="font-semibold text-gold">{formatPrice(totalPrice)}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

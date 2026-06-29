@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { CalendarDays, LayoutDashboard, Scissors, Settings, Users } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useShop } from '../../hooks/useShop'
 import Button from '../ui/Button'
@@ -7,11 +8,11 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import BrandLogo from '../BrandLogo'
 
 const nav = [
-  { to: '/dashboard', label: 'Ozet', icon: '📊', end: true },
-  { to: '/dashboard/appointments', label: 'Randevular', icon: '📅' },
-  { to: '/dashboard/employees', label: 'Personel', icon: '👤' },
-  { to: '/dashboard/services', label: 'Hizmetler', icon: '✂️' },
-  { to: '/dashboard/settings', label: 'Ayarlar', icon: '⚙️' },
+  { to: '/dashboard', label: 'Ozet', icon: LayoutDashboard, end: true },
+  { to: '/dashboard/appointments', label: 'Randevular', icon: CalendarDays },
+  { to: '/dashboard/employees', label: 'Personel', icon: Users },
+  { to: '/dashboard/services', label: 'Hizmetler', icon: Scissors },
+  { to: '/dashboard/settings', label: 'Ayarlar', icon: Settings },
 ]
 
 export default function DashboardLayout() {
@@ -54,19 +55,22 @@ export default function DashboardLayout() {
         </div>
 
         <nav className="flex-1 space-y-1 p-3">
-          {nav.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${isActive ? 'bg-gold/10 text-gold' : 'text-cream-muted hover:bg-blue-50 hover:text-cream'}`
-              }
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
+          {nav.map(item => {
+            const Icon = item.icon
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${isActive ? 'bg-gold/10 text-gold' : 'text-cream-muted hover:bg-blue-50 hover:text-cream'}`
+                }
+              >
+                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {item.label}
+              </NavLink>
+            )
+          })}
         </nav>
 
         {bookingUrl && (
@@ -98,24 +102,27 @@ export default function DashboardLayout() {
           </Button>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-auto p-4 pb-24 md:p-6">
+        <main className="min-w-0 flex-1 overflow-auto p-4 pb-28 md:p-6">
           <Outlet />
         </main>
 
-        <nav className="flex border-t border-gold/10 bg-navy-light pb-[env(safe-area-inset-bottom)] md:hidden">
-          {nav.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] ${isActive ? 'text-gold' : 'text-cream-muted'}`
-              }
-            >
-              <span className="text-lg">{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
+        <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-gold/10 bg-navy-light/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+          {nav.map(item => {
+            const Icon = item.icon
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex min-h-14 flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium ${isActive ? 'text-gold' : 'text-cream-muted'}`
+                }
+              >
+                <Icon className="h-5 w-5" aria-hidden="true" />
+                {item.label}
+              </NavLink>
+            )
+          })}
         </nav>
       </div>
     </div>

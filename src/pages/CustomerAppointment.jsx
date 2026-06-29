@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { supabase } from '../lib/supabase'
-import { formatPrice, formatTime } from '../lib/time'
+import { formatTime } from '../lib/time'
+import { getAppointmentPriceLabel, getAppointmentServiceName } from '../lib/appointmentSummary'
 import { formatTurkishMobile, getTurkishMobileError, normalizeTurkishMobile } from '../lib/phone'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -137,7 +138,7 @@ export default function CustomerAppointment() {
               </div>
               <div className="flex justify-between gap-3">
                 <span className="text-cream-muted">Hizmet</span>
-                <span className="text-right font-medium text-cream">{appointment.services?.name}</span>
+                <span className="text-right font-medium text-cream">{getAppointmentServiceName(appointment)}</span>
               </div>
               <div className="flex justify-between gap-3">
                 <span className="text-cream-muted">Tarih</span>
@@ -149,7 +150,7 @@ export default function CustomerAppointment() {
               </div>
               <div className="flex justify-between gap-3">
                 <span className="text-cream-muted">Fiyat</span>
-                <span className="font-semibold text-gold">{formatPrice(appointment.services?.price || 0)}</span>
+                <span className="font-semibold text-gold">{getAppointmentPriceLabel(appointment)}</span>
               </div>
             </div>
 
