@@ -20,6 +20,23 @@ function normalizePhone(value = '') {
   return digits
 }
 
+async function saveCustomer(supabase, { shopId, name, phone }) {
+  const customerName = String(name || '').trim()
+  const customerPhone = normalizePhone(phone)
+  if (!shopId || !customerName || !customerPhone) return
+
+  const { error } = await supabase
+    .from('customers')
+    .upsert({
+      shop_id: shopId,
+      name: customerName,
+      phone: customerPhone,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'shop_id,phone' })
+
+  if (error && error.code !== '42P01' && error.code !== 'PGRST205') throw error
+}
+
 function addMinutes(time, minutes) {
   const [hour, minute] = String(time).slice(0, 5).split(':').map(Number)
   const date = new Date(2000, 0, 1, hour || 0, minute || 0)
@@ -186,6 +203,12 @@ export async function handler(event) {
       .single()
 
     if (insertError) throw insertError
+
+    await saveCustomer(supabase, {
+      shopId,
+      name: customerName,
+      phone: customerPhone,
+    })
 
     return {
       statusCode: 200,

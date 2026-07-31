@@ -34,6 +34,38 @@ create index if not exists appointments_shop_created_at_idx on appointments(shop
 create unique index if not exists appointments_shop_code_idx on appointments(shop_id, appointment_code) where appointment_code is not null;
 create index if not exists appointments_reminder_idx on appointments(appointment_date, status, reminder_24h_sent_at, reminder_2h_sent_at);
 
+-- Musteri rehberi: randevu eklenirken hazir musteriler buradan aranir.
+create table if not exists customers (
+  id uuid primary key default gen_random_uuid(),
+  shop_id uuid references shops not null,
+  name text not null,
+  phone text not null,
+  notes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create unique index if not exists customers_shop_phone_idx on customers(shop_id, phone);
+create index if not exists customers_shop_updated_at_idx on customers(shop_id, updated_at desc);
+
+alter table customers enable row level security;
+
+drop policy if exists "customers_public_select" on customers;
+create policy "customers_public_select"
+on customers for select
+using (true);
+
+drop policy if exists "customers_public_insert" on customers;
+create policy "customers_public_insert"
+on customers for insert
+with check (true);
+
+drop policy if exists "customers_public_update" on customers;
+create policy "customers_public_update"
+on customers for update
+using (true)
+with check (true);
+
 update appointments
 set appointment_code = upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6))
 where appointment_code is null;

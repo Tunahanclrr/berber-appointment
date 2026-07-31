@@ -25,6 +25,7 @@ import {
   showStaffAppointmentNotification,
 } from '../../lib/pushNotifications'
 import { formatTurkishMobile, getTurkishMobileError, normalizeTurkishMobile } from '../../lib/phone'
+import { loadCustomerOptions, upsertCustomer } from '../../lib/customers'
 
 function emptyAppointment(employeeId = '') {
   return {
@@ -145,10 +146,7 @@ export default function StaffDashboard() {
       .slice(0, 6)
   }, [appointments])
 
-  const customerOptions = useMemo(() => customers.map(customer => ({
-    name: customer.customer_name,
-    phone: customer.customer_phone,
-  })), [customers])
+  const customerOptions = useMemo(() => customers, [customers])
 
   const selectedServices = form.serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean)
   const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
@@ -414,20 +412,12 @@ export default function StaffDashboard() {
   useEffect(() => {
     if (!shopId || !employeeId) return
 
-    supabase
-      .from('appointments')
-      .select('customer_name, customer_phone, created_at')
-      .eq('shop_id', shopId)
-      .eq('employee_id', employeeId)
-      .not('customer_phone', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(200)
-      .then(({ data, error: customersError }) => {
+    loadCustomerOptions({ supabase, shopId, employeeId, limit: 200 })
+      .then(setCustomers)
+      .catch(customersError => {
         if (customersError) {
           setError(customersError.message)
-          return
         }
-        setCustomers(data || [])
       })
   }, [shopId, employeeId])
 
@@ -662,6 +652,13 @@ export default function StaffDashboard() {
     if (saveError) {
       setError(saveError.message)
     } else {
+      await upsertCustomer({
+        supabase,
+        shopId,
+        name: form.customerName,
+        phone: form.customerPhone,
+      })
+      setCustomers(await loadCustomerOptions({ supabase, shopId, employeeId, limit: 200 }))
       if (modalMode === 'add') notifyAppointmentCreated(createdAppointment?.id)
       setShowModal(false)
       await load()

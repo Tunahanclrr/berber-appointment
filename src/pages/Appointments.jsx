@@ -15,6 +15,7 @@ import CustomerQuickPick from '../components/CustomerQuickPick'
 import { buildAppointmentMessage, buildWhatsAppUrl } from '../lib/whatsapp'
 import { notifyAppointmentCreated } from '../lib/pushNotifications'
 import { formatTurkishMobile, getTurkishMobileError, normalizeTurkishMobile } from '../lib/phone'
+import { loadCustomerOptions, upsertCustomer } from '../lib/customers'
 
 const VIEWS = [
   { key: 'son', label: 'Son eklenenler' },
@@ -71,10 +72,7 @@ export default function Appointments() {
     cancelled: appointments.filter(a => a.status === 'cancelled').length,
   }), [appointments])
 
-  const customerOptions = useMemo(() => customers.map(customer => ({
-    name: customer.customer_name,
-    phone: customer.customer_phone,
-  })), [customers])
+  const customerOptions = useMemo(() => customers, [customers])
 
   const selectedServices = form.serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean)
   const selectedEmployee = employees.find(employee => employee.id === form.employeeId)
@@ -234,19 +232,12 @@ export default function Appointments() {
   useEffect(() => {
     if (!shop?.id) return
 
-    supabase
-      .from('appointments')
-      .select('customer_name, customer_phone, created_at')
-      .eq('shop_id', shop.id)
-      .not('customer_phone', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(300)
-      .then(({ data, error: customersError }) => {
+    loadCustomerOptions({ supabase, shopId: shop.id, limit: 300 })
+      .then(setCustomers)
+      .catch(customersError => {
         if (customersError) {
           setError(customersError.message)
-          return
         }
-        setCustomers(data || [])
       })
   }, [shop?.id])
 
@@ -469,6 +460,13 @@ export default function Appointments() {
     if (saveError) {
       setError(saveError.message)
     } else {
+      await upsertCustomer({
+        supabase,
+        shopId: shop.id,
+        name: form.customerName,
+        phone: form.customerPhone,
+      })
+      setCustomers(await loadCustomerOptions({ supabase, shopId: shop.id, limit: 300 }))
       if (modalMode === 'add') notifyAppointmentCreated(createdAppointment?.id)
       setShowModal(false)
       setForm(emptyAppointment())

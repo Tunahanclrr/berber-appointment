@@ -16,6 +16,7 @@ import Loading from '../../components/ui/Loading'
 import BrandLogo from '../../components/BrandLogo'
 import SEO from '../../components/SEO'
 import { isLockedBookingPwa, rememberBookingPath } from '../../lib/pwa'
+import { upsertCustomer } from '../../lib/customers'
 
 const STEPS = ['Personel', 'Hizmet', 'Tarih & Saat', 'Onayla']
 
@@ -184,6 +185,13 @@ export default function BookingPage() {
       .single()
 
     if (insertError) throw insertError
+
+    await upsertCustomer({
+      supabase,
+      shopId: shop.id,
+      name: customerName,
+      phone: normalizedPhone,
+    })
 
     return {
       appointmentId: createdAppointment.id,
