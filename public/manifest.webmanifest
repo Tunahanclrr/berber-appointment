@@ -1,13 +1,14 @@
 {
-  "name": "Randevu Zamanı",
-  "short_name": "Randevu Zamanı",
-  "description": "Randevu ve personel takip paneli",
+  "name": "Randevu Zamani",
+  "short_name": "Randevu",
+  "description": "Online randevu ve personel takip paneli",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#F8FAFC",
   "theme_color": "#F8FAFC",
   "orientation": "portrait",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/berber-logo-png.png",

@@ -101,6 +101,11 @@ create policy "employee_services_public_select"
 on employee_services for select
 using (true);
 
+-- Personel bazli hizmet fiyat/sure override alani.
+-- Bos birakilirsa services tablosundaki varsayilan sure/fiyat kullanilir.
+alter table employee_services add column if not exists duration integer;
+alter table employee_services add column if not exists price numeric;
+
 drop policy if exists "appointments_public_select_slots" on appointments;
 create policy "appointments_public_select_slots"
 on appointments for select

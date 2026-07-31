@@ -2,6 +2,20 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Button from '../components/ui/Button'
 import BrandLogo from '../components/BrandLogo'
+import SEO from '../components/SEO'
+
+const landingStructuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Randevu Zamani',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  description: 'Berberler ve randevulu calisan isletmeler icin online randevu ve personel takip sistemi.',
+  offers: {
+    '@type': 'Offer',
+    availability: 'https://schema.org/InStock',
+  },
+}
 
 export default function Landing() {
   const features = [
@@ -36,6 +50,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-navy text-cream">
+      <SEO structuredData={landingStructuredData} />
       <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 lg:px-8">
         <Link to="/" className="flex min-w-0 items-center gap-3">
           <BrandLogo size="md" />

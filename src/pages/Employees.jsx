@@ -17,6 +17,12 @@ const DAYS = [
   { key: 'sunday', label: 'Pazar' },
 ]
 
+function parseOptionalNumber(value) {
+  if (value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 export default function Employees() {
   const { shop } = useShop()
   const [employees, setEmployees] = useState([])
@@ -31,7 +37,7 @@ export default function Employees() {
 
   async function load() {
     const [empRes, svcRes] = await Promise.all([
-      supabase.from('employees').select('*, employee_services(service_id)').eq('shop_id', shop.id).order('name'),
+      supabase.from('employees').select('*, employee_services(*)').eq('shop_id', shop.id).order('name'),
       supabase.from('services').select('*').eq('shop_id', shop.id).order('name'),
     ])
     setEmployees(empRes.data || [])
@@ -66,9 +72,39 @@ export default function Employees() {
     if (assigned) {
       await supabase.from('employee_services').delete().eq('employee_id', employeeId).eq('service_id', serviceId)
     } else {
-      await supabase.from('employee_services').insert({ employee_id: employeeId, service_id: serviceId })
+      const service = services.find(item => item.id === serviceId)
+      await supabase.from('employee_services').insert({
+        employee_id: employeeId,
+        service_id: serviceId,
+        duration: service?.duration ?? null,
+        price: service?.price ?? null,
+      })
     }
     await load()
+  }
+
+  async function updateEmployeeService(employeeId, serviceId, changes) {
+    const { error: err } = await supabase
+      .from('employee_services')
+      .update(changes)
+      .eq('employee_id', employeeId)
+      .eq('service_id', serviceId)
+
+    if (err) {
+      setError(err.message)
+      await load()
+      return
+    }
+
+    setEmployees(prev => prev.map(emp => {
+      if (emp.id !== employeeId) return emp
+      return {
+        ...emp,
+        employee_services: (emp.employee_services || []).map(row =>
+          row.service_id === serviceId ? { ...row, ...changes } : row
+        ),
+      }
+    }))
   }
 
   function defaultHours() {
@@ -139,7 +175,9 @@ export default function Employees() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {employees.map(emp => {
-          const assignedIds = new Set((emp.employee_services || []).map(es => es.service_id))
+          const assignedRows = emp.employee_services || []
+          const assignedIds = new Set(assignedRows.map(es => es.service_id))
+          const assignedByServiceId = new Map(assignedRows.map(es => [es.service_id, es]))
           return (
             <Card key={emp.id}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -162,20 +200,60 @@ export default function Employees() {
               </div>
 
               {services.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-4 space-y-3">
                   {services.map(svc => {
                     const on = assignedIds.has(svc.id)
+                    const assignment = assignedByServiceId.get(svc.id)
                     return (
-                      <button
-                        key={svc.id}
-                        type="button"
-                        onClick={() => toggleService(emp.id, svc.id, on)}
-                        className={`rounded-full border px-3 py-1 text-xs transition ${
-                          on ? 'border-gold/50 bg-gold/15 text-gold' : 'border-gold/20 text-cream-muted'
-                        }`}
-                      >
-                        {svc.name}
-                      </button>
+                      <div key={svc.id} className={`rounded-lg border p-3 ${
+                        on ? 'border-gold/40 bg-gold/5' : 'border-gold/10 bg-navy/30'
+                      }`}>
+                        <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+                          <button
+                            type="button"
+                            onClick={() => toggleService(emp.id, svc.id, on)}
+                            className={`rounded-full border px-3 py-1 text-left text-xs transition ${
+                              on ? 'border-gold/50 bg-gold/15 text-gold' : 'border-gold/20 text-cream-muted'
+                            }`}
+                          >
+                            {on ? 'Aktif' : 'Pasif'} - {svc.name}
+                          </button>
+                          <span className="text-xs text-cream-muted">
+                            Varsayilan: {svc.duration} dk - {formatPrice(svc.price)}
+                          </span>
+                        </div>
+
+                        {on && (
+                          <div className="mt-3 grid gap-2 min-[420px]:grid-cols-2">
+                            <Input
+                              label="Bu personelde sure"
+                              type="number"
+                              min="1"
+                              step="1"
+                              defaultValue={assignment?.duration ?? svc.duration ?? ''}
+                              onBlur={event => updateEmployeeService(emp.id, svc.id, {
+                                duration: parseOptionalNumber(event.target.value),
+                              })}
+                              onKeyDown={event => {
+                                if (event.key === 'Enter') event.currentTarget.blur()
+                              }}
+                            />
+                            <Input
+                              label="Bu personelde fiyat"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              defaultValue={assignment?.price ?? svc.price ?? ''}
+                              onBlur={event => updateEmployeeService(emp.id, svc.id, {
+                                price: parseOptionalNumber(event.target.value),
+                              })}
+                              onKeyDown={event => {
+                                if (event.key === 'Enter') event.currentTarget.blur()
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>

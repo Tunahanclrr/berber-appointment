@@ -98,19 +98,43 @@ export async function handler(event) {
     if (employeeError || !employee) throw new Error('Personel bulunamadi.')
     if (shopError || !shop) throw new Error('Dukkan bulunamadi.')
 
-    const { data: selectedServices, error: servicesError } = await supabase
-      .from('services')
-      .select('id, name, duration, price')
-      .eq('shop_id', shopId)
-      .in('id', serviceIds)
+    const [{ data: selectedServices, error: servicesError }, { data: employeeServices, error: employeeServicesError }] = await Promise.all([
+      supabase
+        .from('services')
+        .select('id, name, duration, price')
+        .eq('shop_id', shopId)
+        .in('id', serviceIds),
+      supabase
+        .from('employee_services')
+        .select('*')
+        .eq('employee_id', employeeId),
+    ])
 
     if (servicesError) throw servicesError
-    if (!selectedServices || selectedServices.length !== serviceIds.length) {
+    if (employeeServicesError) throw employeeServicesError
+
+    const assignments = employeeServices || []
+    const assignedByServiceId = new Map(assignments.map(item => [item.service_id, item]))
+
+    if (assignments.length > 0 && serviceIds.some(serviceId => !assignedByServiceId.has(serviceId))) {
+      throw new Error('Secilen hizmet bu personele tanimli degil.')
+    }
+
+    const effectiveServices = (selectedServices || []).map(service => {
+      const assignment = assignedByServiceId.get(service.id)
+      return {
+        ...service,
+        duration: assignment?.duration ?? service.duration,
+        price: assignment?.price ?? service.price,
+      }
+    })
+
+    if (effectiveServices.length !== serviceIds.length) {
       throw new Error('Hizmet bilgisi bulunamadi.')
     }
 
-    const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
-    const totalPrice = selectedServices.reduce((sum, service) => sum + (Number(service.price) || 0), 0)
+    const totalDuration = effectiveServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
+    const totalPrice = effectiveServices.reduce((sum, service) => sum + (Number(service.price) || 0), 0)
     const endTime = addMinutes(startTime, totalDuration || 30)
     const dayHours = getDayHours(employee.working_hours || shop.working_hours, appointmentDate)
 
@@ -139,7 +163,7 @@ export async function handler(event) {
     }
 
     const notes = [
-      `Secilen hizmetler: ${selectedServices.map(service => service.name).join(', ')}`,
+      `Secilen hizmetler: ${effectiveServices.map(service => service.name).join(', ')}`,
       `Toplam sure: ${totalDuration} dk`,
       `Toplam ucret: ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(totalPrice)}`,
     ].join('\n')
@@ -149,7 +173,7 @@ export async function handler(event) {
       .insert({
         shop_id: shopId,
         employee_id: employeeId,
-        service_id: selectedServices[0].id,
+        service_id: effectiveServices[0].id,
         customer_name: customerName,
         customer_phone: customerPhone,
         appointment_date: appointmentDate,

@@ -22,12 +22,16 @@ export default function BrandLogo({ size = 'md', showText = true, className = ''
     <div className={`flex min-w-0 items-center gap-3 ${className}`}>
       <img
         src={logo}
-        alt="Randevu Zamani"
+        alt="Randevu Zamani logosu"
+        width="96"
+        height="96"
+        loading="eager"
+        decoding="async"
         className={`${selected.image} shrink-0 rounded-xl object-contain`}
       />
       {showText && (
         <span className={`truncate font-display font-extrabold tracking-tight text-cream ${selected.text}`}>
-          Randevu Zamanı
+          Randevu Zamani
         </span>
       )}
     </div>

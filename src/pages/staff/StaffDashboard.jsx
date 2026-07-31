@@ -15,6 +15,7 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Loading from '../../components/ui/Loading'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import CustomerQuickPick from '../../components/CustomerQuickPick'
 import { buildAppointmentMessage, buildWhatsAppUrl } from '../../lib/whatsapp'
 import {
   enableStaffPushNotifications,
@@ -54,6 +55,7 @@ export default function StaffDashboard() {
   const [searchParams] = useSearchParams()
   const { token, employeeId, employeeName, shopId, shopName, clearSession } = useStaffStore()
   const [appointments, setAppointments] = useState([])
+  const [customers, setCustomers] = useState([])
   const [services, setServices] = useState([])
   const [shopWorkingHours, setShopWorkingHours] = useState(null)
   const [employeeWorkingHours, setEmployeeWorkingHours] = useState(null)
@@ -142,6 +144,11 @@ export default function StaffDashboard() {
       .sort((a, b) => getAppointmentDateTime(a) - getAppointmentDateTime(b))
       .slice(0, 6)
   }, [appointments])
+
+  const customerOptions = useMemo(() => customers.map(customer => ({
+    name: customer.customer_name,
+    phone: customer.customer_phone,
+  })), [customers])
 
   const selectedServices = form.serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean)
   const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
@@ -405,6 +412,26 @@ export default function StaffDashboard() {
   }, [shopId, employeeId])
 
   useEffect(() => {
+    if (!shopId || !employeeId) return
+
+    supabase
+      .from('appointments')
+      .select('customer_name, customer_phone, created_at')
+      .eq('shop_id', shopId)
+      .eq('employee_id', employeeId)
+      .not('customer_phone', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(200)
+      .then(({ data, error: customersError }) => {
+        if (customersError) {
+          setError(customersError.message)
+          return
+        }
+        setCustomers(data || [])
+      })
+  }, [shopId, employeeId])
+
+  useEffect(() => {
     if (token) load()
   }, [token, employeeId, shopId, dateFrom, dateTo])
 
@@ -504,6 +531,14 @@ export default function StaffDashboard() {
       employeeId,
     })
     setShowModal(true)
+  }
+
+  function fillCustomer(customer) {
+    setForm(prev => ({
+      ...prev,
+      customerName: customer.name || prev.customerName,
+      customerPhone: customer.phone || prev.customerPhone,
+    }))
   }
 
   async function updateStatus(id, status) {
@@ -747,6 +782,13 @@ export default function StaffDashboard() {
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-5">
               <div className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <CustomerQuickPick
+                    customers={customerOptions}
+                    onSelect={fillCustomer}
+                    onError={setError}
+                  />
+                </div>
                 <Input label="Musteri Adi" value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} />
                 <Input
                   label="Telefon"

@@ -11,6 +11,7 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Loading from '../components/ui/Loading'
+import CustomerQuickPick from '../components/CustomerQuickPick'
 import { buildAppointmentMessage, buildWhatsAppUrl } from '../lib/whatsapp'
 import { notifyAppointmentCreated } from '../lib/pushNotifications'
 import { formatTurkishMobile, getTurkishMobileError, normalizeTurkishMobile } from '../lib/phone'
@@ -41,6 +42,7 @@ export default function Appointments() {
   const { shop } = useShop()
   const [appointments, setAppointments] = useState([])
   const [upcomingAppointments, setUpcomingAppointments] = useState([])
+  const [customers, setCustomers] = useState([])
   const [employees, setEmployees] = useState([])
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(true)
@@ -52,12 +54,12 @@ export default function Appointments() {
   const [showFilters, setShowFilters] = useState(false)
   const [error, setError] = useState('')
 
-  const [showModal, setShowModal] = useState(false)
+  const [showModal,setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState('add')
   const [form, setForm] = useState(emptyAppointment)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleting, setDeleting] = useState(false)
+  const [deleting,setDeleting]=useState(false)
   const [slotConflicts, setSlotConflicts] = useState([])
 
   const summary = useMemo(() => ({
@@ -68,6 +70,11 @@ export default function Appointments() {
     noShow: appointments.filter(a => a.status === 'no_show').length,
     cancelled: appointments.filter(a => a.status === 'cancelled').length,
   }), [appointments])
+
+  const customerOptions = useMemo(() => customers.map(customer => ({
+    name: customer.customer_name,
+    phone: customer.customer_phone,
+  })), [customers])
 
   const selectedServices = form.serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean)
   const selectedEmployee = employees.find(employee => employee.id === form.employeeId)
@@ -225,6 +232,25 @@ export default function Appointments() {
   }, [shop])
 
   useEffect(() => {
+    if (!shop?.id) return
+
+    supabase
+      .from('appointments')
+      .select('customer_name, customer_phone, created_at')
+      .eq('shop_id', shop.id)
+      .not('customer_phone', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(300)
+      .then(({ data, error: customersError }) => {
+        if (customersError) {
+          setError(customersError.message)
+          return
+        }
+        setCustomers(data || [])
+      })
+  }, [shop?.id])
+
+  useEffect(() => {
     if (shop) load()
   }, [shop, date, filterStatus, filterEmployee, view, search])
 
@@ -310,6 +336,14 @@ export default function Appointments() {
       notes: appointment.notes || '',
     })
     setShowModal(true)
+  }
+
+  function fillCustomer(customer) {
+    setForm(prev => ({
+      ...prev,
+      customerName: customer.name || prev.customerName,
+      customerPhone: customer.phone || prev.customerPhone,
+    }))
   }
 
   async function updateStatus(id, status) {
@@ -484,6 +518,13 @@ export default function Appointments() {
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-5">
               <div className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <CustomerQuickPick
+                    customers={customerOptions}
+                    onSelect={fillCustomer}
+                    onError={setError}
+                  />
+                </div>
                 <Input label="Musteri Adi" value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} />
                 <Input
                   label="Telefon"

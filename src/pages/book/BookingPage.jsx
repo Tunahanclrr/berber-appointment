@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, addDays } from 'date-fns'
@@ -14,9 +14,10 @@ import PhoneInput from '../../components/ui/PhoneInput'
 import Card from '../../components/ui/Card'
 import Loading from '../../components/ui/Loading'
 import BrandLogo from '../../components/BrandLogo'
+import SEO from '../../components/SEO'
 import { isLockedBookingPwa, rememberBookingPath } from '../../lib/pwa'
 
-const STEPS = ['Hizmet', 'Tarih & Saat', 'Onayla']
+const STEPS = ['Personel', 'Hizmet', 'Tarih & Saat', 'Onayla']
 
 function isLocalDevHost() {
   return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
@@ -43,26 +44,48 @@ export default function BookingPage() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
 
-  const selectedServices = serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean)
+  const selectedEmployeeServices = useMemo(() => {
+    if (!employeeId) return []
+
+    const assignments = employeeServices.filter(item => item.employee_id === employeeId)
+    if (assignments.length === 0) return services
+
+    const serviceById = new Map(services.map(service => [service.id, service]))
+    return assignments
+      .map(assignment => {
+        const service = serviceById.get(assignment.service_id)
+        if (!service) return null
+
+        return {
+          ...service,
+          duration: assignment.duration ?? service.duration,
+          price: assignment.price ?? service.price,
+          employee_service_id: assignment.id,
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+  }, [employeeId, employeeServices, services])
+
+  const selectedServices = serviceIds.map(id => selectedEmployeeServices.find(s => s.id === id)).filter(Boolean)
   const selectedService = selectedServices[0]
   const totalDuration = selectedServices.reduce((sum, service) => sum + (Number(service.duration) || 0), 0)
   const totalPrice = selectedServices.reduce((sum, service) => sum + (Number(service.price) || 0), 0)
   const selectedEmployee = employees.find(e => e.id === employeeId)
+  const bookingStructuredData = useMemo(() => {
+    if (!shop) return null
 
-  const employeesForService = serviceIds.length > 0
-    ? (() => {
-        return employees.filter(emp => {
-          return serviceIds.every(serviceId => {
-            const assignedIds = new Set(
-              employeeServices
-                .filter(es => es.service_id === serviceId)
-                .map(es => es.employee_id)
-            )
-            return assignedIds.size === 0 || assignedIds.has(emp.id)
-          })
-        })
-      })()
-    : employees
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      name: shop.name,
+      url: window.location.href,
+      potentialAction: {
+        '@type': 'ReserveAction',
+        target: window.location.href,
+      },
+    }
+  }, [shop])
 
   const baseAvailability = computeAvailableSlots({
     date,
@@ -190,6 +213,11 @@ export default function BookingPage() {
       return
     }
 
+    if (selectedServices.length === 0) {
+      setError('Lutfen hizmet seciniz.')
+      return
+    }
+
     if (!startTime) {
       setError('Lutfen musait bir saat seciniz.')
       return
@@ -253,6 +281,11 @@ export default function BookingPage() {
   if (error && !shop) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-navy px-4">
+        <SEO
+          title="Dukkan bulunamadi | Randevu Zamani"
+          description="Aradiginiz randevu sayfasi bulunamadi."
+          noIndex
+        />
         <Card className="max-w-md text-center">
           <p className="text-red-400">{error}</p>
           <Link to="/book" className="mt-4 inline-block text-gold hover:underline">Geri don</Link>
@@ -264,6 +297,11 @@ export default function BookingPage() {
   if (success) {
     return (
       <div className="flex min-h-screen flex-col bg-navy">
+        <SEO
+          title={`Randevu alindi | ${shop.name}`}
+          description={`${shop.name} icin randevu bilgileriniz olusturuldu.`}
+          noIndex
+        />
         <header className="border-b border-gold/10 px-4 py-4 text-center">
           <button type="button" onClick={resetForAnotherAppointment} className="absolute left-4 top-4 text-sm text-cream-muted hover:text-gold">
             Yeni Randevu
@@ -330,6 +368,11 @@ export default function BookingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-navy">
+      <SEO
+        title={`${shop.name} | Online Randevu Al`}
+        description={`${shop.name} icin online randevu al. Hizmet, personel, tarih ve saat secerek randevunu hizlica olustur.`}
+        structuredData={bookingStructuredData}
+      />
       <header className="sticky top-0 z-10 border-b border-gold/10 bg-navy/95 px-4 py-6 text-center backdrop-blur">
         {!bookingPwaLocked && (
           <Link to="/book" className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-cream-muted transition hover:text-gold">Geri</Link>
@@ -359,13 +402,55 @@ export default function BookingPage() {
         <AnimatePresence mode="wait">
           {step === 0 && (
             <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <h2 className="mb-4 font-display text-lg text-cream">Hizmet Sec</h2>
-              {services.length === 0 ? (
-                <p className="text-cream-muted">Henuz hizmet eklenmemis.</p>
+              <h2 className="mb-4 font-display text-lg text-cream">Personel Sec</h2>
+              {employees.length === 0 ? (
+                <p className="text-cream-muted">Henuz aktif personel eklenmemis.</p>
               ) : (
                 <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
+                    {employees.map(emp => (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => {
+                          setEmployeeId(emp.id)
+                          setServiceIds([])
+                          setStartTime('')
+                        }}
+                        className={`glass rounded-xl p-4 text-center transition ${employeeId === emp.id ? 'border-gold ring-1 ring-gold/30' : ''}`}
+                      >
+                        <span className="text-2xl">Usta</span>
+                        <p className="mt-1 text-sm font-medium text-cream">{emp.name}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedEmployee && (
+                    <Card>
+                      <p className="text-sm text-cream-muted">Secilen personel</p>
+                      <p className="mt-1 font-semibold text-cream">{selectedEmployee.name}</p>
+                    </Card>
+                  )}
+
+                  <Button className="w-full" disabled={!employeeId} onClick={() => setStep(1)}>
+                    Devam
+                  </Button>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {step === 1 && (
+            <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+              <div>
+                <h2 className="mb-3 font-display text-lg text-cream">Hizmet Sec</h2>
+                {selectedEmployeeServices.length === 0 ? (
+                  <p className="rounded-lg border border-gold/10 bg-gold/5 px-3 py-2 text-sm text-cream-muted">
+                    Bu personele henuz hizmet tanimlanmamis.
+                  </p>
+                ) : (
                   <div className="space-y-3">
-                    {services.map(svc => {
+                    {selectedEmployeeServices.map(svc => {
                       const selected = serviceIds.includes(svc.id)
                       return (
                         <button
@@ -373,7 +458,6 @@ export default function BookingPage() {
                           type="button"
                           onClick={() => {
                             setServiceIds(prev => selected ? prev.filter(id => id !== svc.id) : [...prev, svc.id])
-                            setEmployeeId('')
                             setStartTime('')
                           }}
                           className={`glass flex w-full items-center justify-between gap-3 rounded-xl p-4 text-left transition hover:border-gold/50 ${
@@ -395,50 +479,31 @@ export default function BookingPage() {
                       )
                     })}
                   </div>
+                )}
+              </div>
 
-                  {selectedServices.length > 0 && (
-                    <Card>
-                      <div className="flex items-center justify-between gap-4 text-sm">
-                        <span className="text-cream-muted">{selectedServices.length} hizmet secildi</span>
-                        <span className="font-mono text-gold">{totalDuration} dk</span>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-4 text-sm">
-                        <span className="text-cream-muted">Toplam</span>
-                        <span className="font-semibold text-gold">{formatPrice(totalPrice)}</span>
-                      </div>
-                    </Card>
-                  )}
-
-                  <Button className="w-full" disabled={selectedServices.length === 0} onClick={() => setStep(1)}>
-                    Devam
-                  </Button>
-                </div>
+              {selectedServices.length > 0 && (
+                <Card>
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <span className="text-cream-muted">{selectedServices.length} hizmet secildi</span>
+                    <span className="font-mono text-gold">{totalDuration} dk</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-4 text-sm">
+                    <span className="text-cream-muted">Toplam</span>
+                    <span className="font-semibold text-gold">{formatPrice(totalPrice)}</span>
+                  </div>
+                </Card>
               )}
+
+              <div className="flex flex-col gap-3 min-[380px]:flex-row">
+                <Button variant="secondary" onClick={() => setStep(0)}>Geri</Button>
+                <Button className="flex-1" disabled={selectedServices.length === 0} onClick={() => setStep(2)}>Devam</Button>
+              </div>
             </motion.div>
           )}
 
-          {step === 1 && (
-            <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-              <div>
-                <h2 className="mb-3 font-display text-lg text-cream">Personel Sec</h2>
-                <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
-                  {employeesForService.map(emp => (
-                    <button
-                      key={emp.id}
-                      type="button"
-                      onClick={() => {
-                        setEmployeeId(emp.id)
-                        setStartTime('')
-                      }}
-                      className={`glass rounded-xl p-4 text-center transition ${employeeId === emp.id ? 'border-gold ring-1 ring-gold/30' : ''}`}
-                    >
-                      <span className="text-2xl">Usta</span>
-                      <p className="mt-1 text-sm font-medium text-cream">{emp.name}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+          {step === 2 && (
+            <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
               <div>
                 <h2 className="mb-3 font-display text-lg text-cream">Tarih Sec</h2>
                 <div className="flex gap-2 overflow-x-auto pb-2">
@@ -467,11 +532,7 @@ export default function BookingPage() {
 
               <div>
                 <h2 className="mb-3 font-display text-lg text-cream">Saat Sec</h2>
-                {!employeeId ? (
-                  <p className="rounded-lg border border-gold/10 bg-gold/5 px-3 py-2 text-sm text-cream-muted">
-                    Saatleri gormek icin once personel sec.
-                  </p>
-                ) : closed ? (
+                {closed ? (
                   <p className="text-sm text-cream-muted">Bu gun kapali.</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-2 min-[380px]:grid-cols-4">
@@ -500,14 +561,14 @@ export default function BookingPage() {
               </div>
 
               <div className="flex flex-col gap-3 min-[380px]:flex-row">
-                <Button variant="secondary" onClick={() => setStep(0)}>Geri</Button>
-                <Button className="flex-1" disabled={!employeeId || !startTime} onClick={() => setStep(2)}>Devam</Button>
+                <Button variant="secondary" onClick={() => setStep(1)}>Geri</Button>
+                <Button className="flex-1" disabled={!startTime} onClick={() => setStep(3)}>Devam</Button>
               </div>
             </motion.div>
           )}
 
-          {step === 2 && (
-            <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+          {step === 3 && (
+            <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
               <Card title="Randevu Ozeti">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between gap-4"><span className="text-cream-muted">Hizmetler</span><span className="text-right text-cream">{selectedServices.map(service => service.name).join(', ')}</span></div>
@@ -530,7 +591,7 @@ export default function BookingPage() {
               {error && <p className="text-sm text-red-400">{error}</p>}
 
               <div className="flex flex-col gap-3 min-[380px]:flex-row">
-                <Button variant="secondary" onClick={() => setStep(1)}>Geri</Button>
+                <Button variant="secondary" onClick={() => setStep(2)}>Geri</Button>
                 <Button
                   className="flex-1"
                   disabled={submitting || !customerName || !customerPhone}
