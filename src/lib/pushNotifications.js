@@ -148,7 +148,7 @@ export async function enableStaffPushNotifications({ shopId, employeeId }) {
   return true
 }
 
-export async function showStaffAppointmentNotification(appointment) {
+export async function showStaffAppointmentNotification(appointment, eventType = 'created') {
   try {
     const support = getPushSupportStatus()
     if (!support.supported || Notification.permission !== 'granted') return false
@@ -163,11 +163,12 @@ export async function showStaffAppointmentNotification(appointment) {
       time,
     ].filter(Boolean).join(' - ')
 
-    await registration.showNotification('Yeni randevu alindi', {
-      body: body || 'Yeni bir randevu olusturuldu.',
+    const isUpdated = eventType === 'updated'
+    await registration.showNotification(isUpdated ? 'Randevu guncellendi' : 'Yeni randevu alindi', {
+      body: isUpdated ? `${appointment?.customer_name || 'Musteri'} randevu saatini guncelledi. ${body}` : (body || 'Yeni bir randevu olusturuldu.'),
       icon: '/berber-logo-png.png',
       badge: '/berber-logo-png.png',
-      tag: `appointment-${appointment?.id || Date.now()}`,
+      tag: `appointment-${eventType}-${appointment?.id || Date.now()}`,
       data: {
         url: appointment?.id ? `/staff/dashboard?appointmentId=${appointment.id}` : '/staff/dashboard',
         appointmentId: appointment?.id,
@@ -196,8 +197,10 @@ async function notifyAppointmentEvent(appointmentId, eventType = 'created') {
 
   try {
     await invokePushSender({ appointment_id: appointmentId, event_type: eventType })
+    return true
   } catch (error) {
     console.warn('Push bildirimi gonderilemedi:', error)
+    return false
   }
 }
 

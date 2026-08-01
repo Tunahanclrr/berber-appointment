@@ -563,7 +563,7 @@ export default function Appointments() {
                       onClick={() => !slot.booked && setForm({ ...form, startTime: slot.time })}
                       className={`rounded-lg border px-2 py-2.5 font-mono text-sm transition disabled:cursor-not-allowed ${
                         slot.booked
-                          ? 'border-red-500/40 bg-red-500/10 text-red-300 opacity-80'
+                          ? 'border-red-500 bg-red-50 text-red-700 opacity-100'
                           : form.startTime === slot.time
                             ? 'border-gold bg-gold/15 text-gold'
                             : 'border-gold/20 bg-navy-light text-cream hover:border-gold/50'

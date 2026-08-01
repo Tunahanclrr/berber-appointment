@@ -153,7 +153,7 @@ export default function CustomerAppointment() {
     } else {
       setAppointment(prev => ({ ...prev, status: 'cancelled' }))
       setMessage('Randevun iptal edildi.')
-      notifyAppointmentUpdated(appointment.id, 'cancelled')
+      await notifyAppointmentUpdated(appointment.id, 'cancelled')
     }
 
     setCancelling(false)
@@ -189,7 +189,7 @@ export default function CustomerAppointment() {
         status: 'pending',
       }))
       setMessage('Randevu saatin guncellendi. Isletme onayi icin bekliyor.')
-      notifyAppointmentUpdated(appointment.id, 'rescheduled')
+      await notifyAppointmentUpdated(appointment.id, 'rescheduled')
     }
 
     setRescheduling(false)

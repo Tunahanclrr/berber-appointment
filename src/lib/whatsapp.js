@@ -20,6 +20,11 @@ export function buildWhatsAppUrl(phone, message) {
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`
 }
 
+function getAppointmentManagementUrl() {
+  if (typeof window === 'undefined') return '/appointment'
+  return `${window.location.origin}/appointment`
+}
+
 export function buildAppointmentMessage({ shopName, appointment, status = 'confirmed' }) {
   const statusText = {
     confirmed: 'onaylanmistir',
@@ -44,8 +49,8 @@ export function buildAppointmentMessage({ shopName, appointment, status = 'confi
     `Tarih: ${date}`,
     `Saat: ${time}`,
     price != null ? `Ucret: ${formatPrice(price)}` : '',
-    appointment.appointment_code ? `\nRandevu yonetim kodunuz:\n${appointment.appointment_code}` : '',
-    appointment.appointment_code ? 'Bu kodla randevunuzu goruntuleyebilir, uygun sure icinde erteleyebilir veya iptal edebilirsiniz.' : '',
+    appointment.appointment_code ? `\nRandevu yonetim kodunuz: ${appointment.appointment_code}` : '',
+    appointment.appointment_code ? `Randevu saatini goruntulemek, ertelemek veya iptal etmek icin: ${getAppointmentManagementUrl()}` : '',
     appointment.appointment_code ? 'Bu kodu kimseyle paylasmayin.' : '',
     'Gorusmek uzere.',
   ].filter(Boolean).join('\n')
