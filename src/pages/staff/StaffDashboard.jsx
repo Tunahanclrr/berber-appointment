@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { addDays, format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
@@ -60,6 +60,7 @@ export default function StaffDashboard() {
   const [services, setServices] = useState([])
   const [shopWorkingHours, setShopWorkingHours] = useState(null)
   const [employeeWorkingHours, setEmployeeWorkingHours] = useState(null)
+  const [commissionRate, setCommissionRate] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [dateFrom, setDateFrom] = useState(todayISO())
@@ -83,6 +84,10 @@ export default function StaffDashboard() {
 
   const today = todayISO()
   const highlightedAppointmentId = searchParams.get('appointmentId')
+  const personalSales = useMemo(() => appointments
+    .filter(appointment => appointment.status === 'done')
+    .reduce((sum, appointment) => sum + (getAppointmentPriceValue(appointment) || 0), 0), [appointments])
+  const personalReceivable = personalSales * commissionRate / 100
 
   function setQuickRange(range) {
     const todayDate = todayISO()
@@ -392,7 +397,7 @@ export default function StaffDashboard() {
         .order('name'),
       supabase
         .from('shops')
-        .select('working_hours')
+           .select('working_hours, commission_rate')
         .eq('id', shopId)
         .maybeSingle(),
       employeeId
@@ -408,7 +413,8 @@ export default function StaffDashboard() {
       if (employeeRes.error) setError(employeeRes.error.message)
       setServices(servicesRes.data || [])
       setShopWorkingHours(shopRes.data?.working_hours || null)
-      setEmployeeWorkingHours(employeeRes.data?.working_hours || null)
+       setEmployeeWorkingHours(employeeRes.data?.working_hours || null)
+       setCommissionRate(Number(employeeRes.data?.commission_rate || 0))
     })
   }, [shopId, employeeId])
 
@@ -920,6 +926,7 @@ export default function StaffDashboard() {
             <Button variant="secondary" size="sm" onClick={handleTestPush} disabled={testPushLoading || !pushEnabled}>
               {testPushLoading ? 'Gonderiliyor...' : 'Test Bildirimi'}
             </Button>
+            <Link to="/staff/finance"><Button variant="secondary" size="sm">Hesabim</Button></Link>
             <Button size="sm" className="hidden sm:inline-flex" onClick={openAddModal}>
               <Plus className="h-4 w-4" aria-hidden="true" />
               Randevu Ekle
@@ -941,6 +948,19 @@ export default function StaffDashboard() {
             {pushStatus}
           </div>
         )}
+
+        <Card className="border-gold/20 bg-gold/5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-cream">Hesabim</p>
+              <p className="text-xs text-cream-muted">Secili randevu araligindaki tamamlanan islemler.</p>
+            </div>
+            <div className="flex gap-5 text-sm">
+              <div><p className="text-cream-muted">Toplam is</p><p className="font-bold text-cream">{formatPrice(personalSales)}</p></div>
+              <div><p className="text-cream-muted">Hak edis (%{commissionRate})</p><p className="font-bold text-emerald-600">{formatPrice(personalReceivable)}</p></div>
+            </div>
+          </div>
+        </Card>
 
         <div className="rounded-lg border border-gold/10 bg-gold/5 px-3 py-2 text-xs text-cream-muted">
           Aktif oturum: {shopName || 'Dukkan yok'} / {employeeName || 'Personel yok'} · shopId: {shopId || '-'} · employeeId: {employeeId || '-'}

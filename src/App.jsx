@@ -19,11 +19,13 @@ const Employees = lazy(() => import('./pages/Employees'))
 const Services = lazy(() => import('./pages/Services'))
 const Appointments = lazy(() => import('./pages/Appointments'))
 const Settings = lazy(() => import('./pages/Settings'))
+const Finance = lazy(() => import('./pages/Finance'))
 const CustomerAppointment = lazy(() => import('./pages/CustomerAppointment'))
 const BookSlugEntry = lazy(() => import('./pages/BookSlugEntry'))
 const BookingPage = lazy(() => import('./pages/book/BookingPage'))
 const StaffLogin = lazy(() => import('./pages/staff/StaffLogin'))
 const StaffDashboard = lazy(() => import('./pages/staff/StaffDashboard'))
+const StaffFinance = lazy(() => import('./pages/staff/StaffFinance'))
 
 function BookingPwaGuard() {
   const location = useLocation()
@@ -73,6 +75,7 @@ export default function App() {
               <Route path="/staff/login/:slug" element={<StaffLogin />} />
               <Route element={<StaffRoute />}>
                 <Route path="/staff/dashboard" element={<StaffDashboard />} />
+                <Route path="/staff/finance" element={<StaffFinance />} />
               </Route>
 
               <Route element={<ProtectedRoute><Outlet /></ProtectedRoute>}>
@@ -84,6 +87,7 @@ export default function App() {
                     <Route path="/dashboard/employees" element={<Employees />} />
                     <Route path="/dashboard/services" element={<Services />} />
                     <Route path="/dashboard/settings" element={<Settings />} />
+                    <Route path="/dashboard/finance" element={<Finance />} />
                   </Route>
                 </Route>
               </Route>

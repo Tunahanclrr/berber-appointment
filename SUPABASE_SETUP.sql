@@ -76,6 +76,39 @@ alter table appointments alter column appointment_code set default upper(substr(
 alter table employees add column if not exists working_hours jsonb;
 alter table employees add column if not exists break_times jsonb default '[]'::jsonb;
 alter table employees add column if not exists time_off jsonb default '[]'::jsonb;
+alter table employees add column if not exists commission_rate numeric default 0 check (commission_rate >= 0 and commission_rate <= 100);
+
+-- Gelir / gider ve tahsilat kayitlari.
+create table if not exists financial_transactions (
+  id uuid primary key default gen_random_uuid(),
+  shop_id uuid references shops not null,
+  employee_id uuid references employees,
+  appointment_id uuid references appointments,
+  transaction_date date not null default current_date,
+  type text not null check (type in ('income', 'expense', 'employee_payment')),
+  title text not null,
+  amount numeric not null check (amount >= 0),
+  payment_method text not null default 'cash' check (payment_method in ('cash', 'iban', 'card', 'mixed', 'other')),
+  cash_amount numeric not null default 0 check (cash_amount >= 0),
+  iban_amount numeric not null default 0 check (iban_amount >= 0),
+  card_amount numeric not null default 0 check (card_amount >= 0),
+  balance_due numeric not null default 0 check (balance_due >= 0),
+  notes text,
+  created_at timestamptz default now()
+);
+
+create index if not exists financial_transactions_shop_date_idx on financial_transactions(shop_id, transaction_date desc);
+create index if not exists financial_transactions_employee_idx on financial_transactions(employee_id, transaction_date desc);
+alter table financial_transactions enable row level security;
+
+drop policy if exists "financial_transactions_public_select" on financial_transactions;
+create policy "financial_transactions_public_select" on financial_transactions for select using (true);
+drop policy if exists "financial_transactions_public_insert" on financial_transactions;
+create policy "financial_transactions_public_insert" on financial_transactions for insert with check (true);
+drop policy if exists "financial_transactions_public_update" on financial_transactions;
+create policy "financial_transactions_public_update" on financial_transactions for update using (true) with check (true);
+drop policy if exists "financial_transactions_public_delete" on financial_transactions;
+create policy "financial_transactions_public_delete" on financial_transactions for delete using (true);
 
 -- PWA web push: personelin cihaz bildirim abonelikleri burada tutulur.
 create table if not exists push_subscriptions (

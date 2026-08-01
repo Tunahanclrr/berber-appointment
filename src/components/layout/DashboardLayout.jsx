@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { CalendarDays, LayoutDashboard, Scissors, Settings, Users } from 'lucide-react'
+import { CalendarDays, LayoutDashboard, Scissors, Settings, Users, WalletCards } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useShop } from '../../hooks/useShop'
 import Button from '../ui/Button'
@@ -12,6 +12,7 @@ const nav = [
   { to: '/dashboard/appointments', label: 'Randevular', icon: CalendarDays },
   { to: '/dashboard/employees', label: 'Personel', icon: Users },
   { to: '/dashboard/services', label: 'Hizmetler', icon: Scissors },
+  { to: '/dashboard/finance', label: 'Gelir Gider', icon: WalletCards },
   { to: '/dashboard/settings', label: 'Ayarlar', icon: Settings },
 ]
 

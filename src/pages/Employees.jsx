@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useShop } from '../hooks/useShop'
 import { DEFAULT_HOURS } from '../lib/slots'
+import { formatPrice } from '../lib/time'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -30,6 +31,7 @@ export default function Employees() {
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [commissionRate, setCommissionRate] = useState('')
   const [error, setError] = useState('')
   const [pinModal, setPinModal] = useState(null)
   const [pin, setPin] = useState('')
@@ -51,10 +53,10 @@ export default function Employees() {
     e.preventDefault()
     if (!name.trim()) return setError('İsim gerekli.')
     const { error: err } = await supabase.from('employees').insert({
-      shop_id: shop.id, name: name.trim(), phone: phone.trim() || null,
+      shop_id: shop.id, name: name.trim(), phone: phone.trim() || null, commission_rate: Number(commissionRate) || 0,
     })
     if (err) setError(err.message)
-    else { setName(''); setPhone(''); await load() }
+    else { setName(''); setPhone(''); setCommissionRate(''); await load() }
   }
 
   async function handleDelete(id) {
@@ -66,6 +68,13 @@ export default function Employees() {
   async function toggleActive(emp) {
     await supabase.from('employees').update({ is_active: !emp.is_active }).eq('id', emp.id)
     await load()
+  }
+
+  async function updateCommissionRate(employeeId, value) {
+    const rate = Math.min(100, Math.max(0, Number(value) || 0))
+    const { error: err } = await supabase.from('employees').update({ commission_rate: rate }).eq('id', employeeId)
+    if (err) { setError(err.message); return }
+    setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, commission_rate: rate } : emp))
   }
 
   async function toggleService(employeeId, serviceId, assigned) {
@@ -165,9 +174,10 @@ export default function Employees() {
       </div>
 
       <Card title="Yeni Personel">
-        <form onSubmit={handleAdd} className="grid gap-3 sm:grid-cols-3">
+        <form onSubmit={handleAdd} className="grid gap-3 sm:grid-cols-4">
           <Input label="Ad Soyad" value={name} onChange={e => setName(e.target.value)} required />
           <Input label="Telefon" value={phone} onChange={e => setPhone(e.target.value)} />
+          <Input label="Hak edis yuzdesi" type="number" min="0" max="100" value={commissionRate} onChange={e => setCommissionRate(e.target.value)} placeholder="Orn. 40" />
           <div className="flex items-end"><Button type="submit" className="w-full">Ekle</Button></div>
         </form>
         {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
@@ -187,6 +197,9 @@ export default function Employees() {
                     {!emp.is_active && <span className="text-xs text-red-400">Pasif</span>}
                   </div>
                   {emp.phone && <p className="text-sm text-cream-muted">{emp.phone}</p>}
+                  <div className="mt-3 max-w-44">
+                    <Input label="Hak edis yuzdesi" type="number" min="0" max="100" defaultValue={emp.commission_rate ?? 0} onBlur={e => updateCommissionRate(emp.id, e.target.value)} />
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 sm:flex">
                   <Button size="sm" variant="secondary" onClick={() => { setPinModal(emp); setPin(''); setPinMsg('') }}>
