@@ -199,7 +199,7 @@ export async function handler(event) {
         status: 'pending',
         notes,
       })
-      .select('id')
+      .select('id, appointment_code')
       .single()
 
     if (insertError) throw insertError
@@ -213,7 +213,11 @@ export async function handler(event) {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ ok: true, appointmentId: createdAppointment.id }),
+      body: JSON.stringify({
+        ok: true,
+        appointmentId: createdAppointment.id,
+        appointmentCode: createdAppointment.appointment_code,
+      }),
     }
   } catch (error) {
     return {

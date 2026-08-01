@@ -37,6 +37,7 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [appointmentCode, setAppointmentCode] = useState('')
 
   const [serviceIds, setServiceIds] = useState([])
   const [employeeId, setEmployeeId] = useState('')
@@ -181,7 +182,7 @@ export default function BookingPage() {
         status: 'pending',
         notes,
       })
-      .select('id')
+      .select('id, appointment_code')
       .single()
 
     if (insertError) throw insertError
@@ -195,11 +196,13 @@ export default function BookingPage() {
 
     return {
       appointmentId: createdAppointment.id,
+      appointmentCode: createdAppointment.appointment_code,
     }
   }
 
   function resetForAnotherAppointment() {
     setSuccess(false)
+    setAppointmentCode('')
     setStep(0)
     setError('')
     setSubmitting(false)
@@ -242,6 +245,7 @@ export default function BookingPage() {
     try {
       if (isLocalDevHost()) {
         const fallbackResult = await createAppointmentFallback()
+        setAppointmentCode(fallbackResult.appointmentCode || '')
         notifyAppointmentCreated(fallbackResult.appointmentId)
         setSuccess(true)
         return
@@ -267,6 +271,7 @@ export default function BookingPage() {
       if (!response.ok || !result?.ok) {
         if (response.status === 404) {
           const fallbackResult = await createAppointmentFallback()
+          setAppointmentCode(fallbackResult.appointmentCode || '')
           notifyAppointmentCreated(fallbackResult.appointmentId)
           setSuccess(true)
           return
@@ -276,6 +281,7 @@ export default function BookingPage() {
       }
 
       notifyAppointmentCreated(result.appointmentId)
+      setAppointmentCode(result.appointmentCode || '')
       setSuccess(true)
     } catch (submitError) {
       setError(submitError.message || 'Randevu olusturulamadi.')
@@ -336,6 +342,16 @@ export default function BookingPage() {
             <h1 className="mt-6 font-display text-3xl font-bold text-cream">Randevun Alindi</h1>
             <p className="mt-3 text-cream-muted">Randevu bilgilerin asagida.</p>
 
+            {appointmentCode && (
+              <div className="mt-6 rounded-xl border border-gold/30 bg-gold/10 p-4">
+                <p className="text-sm text-cream-muted">Randevu yonetim kodun</p>
+                <p className="mt-1 select-all font-mono text-3xl font-bold tracking-widest text-gold">{appointmentCode}</p>
+                <p className="mt-2 text-xs leading-5 text-cream-muted">
+                  Bu kodla randevunu goruntuleyebilir, uygun sure icinde erteleyebilir veya iptal edebilirsin.
+                </p>
+              </div>
+            )}
+
             <div className="mt-8 space-y-4 rounded-xl border border-gold/20 bg-gold/5 p-6 text-left">
               <div className="flex justify-between gap-4 border-b border-gold/10 pb-3">
                 <span className="text-sm text-cream-muted">Dukkan</span>
@@ -364,6 +380,7 @@ export default function BookingPage() {
 
             <div className="mt-8 flex flex-col gap-3">
               <Button className="w-full" onClick={resetForAnotherAppointment}>Baska Randevu Al</Button>
+              <Link to="/appointment"><Button variant="secondary" className="w-full">Randevumu Yonet</Button></Link>
               {!bookingPwaLocked && (
                 <Link to="/"><Button variant="secondary" className="w-full">Ana Sayfaya Don</Button></Link>
               )}

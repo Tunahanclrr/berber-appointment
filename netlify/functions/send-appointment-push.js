@@ -127,10 +127,27 @@ export async function handler(event) {
     if (subscriptionsError) throw subscriptionsError
 
     const serviceName = appointment.services?.name || 'Hizmet'
+    const eventType = body.event_type || 'created'
+    const notification = {
+      created: {
+        title: 'Yeni randevu alindi',
+        body: `${appointment.customer_name} - ${appointment.appointment_date} ${String(appointment.start_time).slice(0, 5)} - ${serviceName}`,
+      },
+      rescheduled: {
+        title: 'Musteri randevuyu guncelledi',
+        body: `${appointment.customer_name} yeni saatini ${appointment.appointment_date} ${String(appointment.start_time).slice(0, 5)} olarak secti.`,
+      },
+      cancelled: {
+        title: 'Musteri randevuyu iptal etti',
+        body: `${appointment.customer_name} - ${appointment.appointment_date} ${String(appointment.start_time).slice(0, 5)}`,
+      },
+    }[eventType] || {
+      title: 'Randevu guncellendi',
+      body: `${appointment.customer_name} - ${appointment.appointment_date} ${String(appointment.start_time).slice(0, 5)}`,
+    }
     const result = await sendPushes(supabase, subscriptions || [], JSON.stringify({
-      title: 'Yeni randevu alindi',
-      body: `${appointment.customer_name} - ${appointment.appointment_date} ${String(appointment.start_time).slice(0, 5)} - ${serviceName}`,
-      tag: `appointment-${appointment.id}`,
+      ...notification,
+      tag: `appointment-${eventType}-${appointment.id}`,
       data: {
         url: `/staff/dashboard?appointmentId=${appointment.id}`,
         appointmentId: appointment.id,

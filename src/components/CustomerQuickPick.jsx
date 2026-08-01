@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
-import { Contact, Search, Upload, Users } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Contact, Search, Users } from 'lucide-react'
 import Button from './ui/Button'
 import Input from './ui/Input'
 import { formatTurkishMobile } from '../lib/phone'
@@ -7,6 +7,7 @@ import { uniqueCustomerOptions } from '../lib/customers'
 
 function getContactPicker() {
   if (typeof navigator === 'undefined') return null
+  if (!window.isSecureContext) return null
   return typeof navigator.contacts?.select === 'function' ? navigator.contacts : null
 }
 
@@ -20,35 +21,11 @@ function getContactPhone(contact) {
   return formatTurkishMobile(phone || '')
 }
 
-function unfoldVCard(text) {
-  return String(text || '').replace(/\r?\n[ \t]/g, '')
-}
-
-function readVCardField(card, field) {
-  const line = card
-    .split(/\r?\n/)
-    .find(item => item.toUpperCase().startsWith(field))
-
-  return line?.split(':').slice(1).join(':').trim() || ''
-}
-
-function parseVCard(text) {
-  const cards = unfoldVCard(text)
-    .split(/END:VCARD/i)
-    .map(card => card.trim())
-    .filter(Boolean)
-
-  return cards.map(card => ({
-    name: readVCardField(card, 'FN') || readVCardField(card, 'N').replace(/;/g, ' ').trim(),
-    phone: formatTurkishMobile(readVCardField(card, 'TEL')),
-  })).filter(contact => contact.name && contact.phone)
-}
-
 export default function CustomerQuickPick({ customers = [], onSelect, onError }) {
   const [query, setQuery] = useState('')
   const [showResults, setShowResults] = useState(false)
-  const fileInputRef = useRef(null)
   const contactPicker = getContactPicker()
+  const canPickContacts = Boolean(contactPicker)
 
   const uniqueCustomers = useMemo(() => uniqueCustomerOptions(customers, 120), [customers])
   const filteredCustomers = useMemo(() => {
@@ -71,8 +48,8 @@ export default function CustomerQuickPick({ customers = [], onSelect, onError })
   }
 
   async function pickFromContacts() {
-    if (!contactPicker) {
-      fileInputRef.current?.click()
+    if (!canPickContacts) {
+      onError?.('Bu tarayici telefon rehberini web sitesi icinden acmaya izin vermiyor. Kayitli musterilerden arayarak devam edebilirsin.')
       return
     }
 
@@ -96,41 +73,17 @@ export default function CustomerQuickPick({ customers = [], onSelect, onError })
     }
   }
 
-  async function importVCard(event) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-
-    try {
-      const text = await file.text()
-      const contacts = parseVCard(text)
-      if (contacts.length === 0) {
-        onError?.('Secilen kisi dosyasinda telefon numarasi bulunamadi.')
-        return
-      }
-      selectCustomer(contacts[0])
-    } catch (error) {
-      onError?.(error?.message || 'Kisi dosyasi okunamadi.')
-    }
-  }
-
   return (
     <div className="rounded-lg border border-gold/10 bg-gold/5 p-3">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".vcf,text/vcard,text/x-vcard"
-        className="hidden"
-        onChange={importVCard}
-      />
-
       <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
-        <Button type="button" variant="secondary" onClick={pickFromContacts}>
-          {contactPicker ? (
-            <Contact className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Upload className="h-4 w-4" aria-hidden="true" />
-          )}
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={pickFromContacts}
+          disabled={!canPickContacts}
+          title={canPickContacts ? 'Telefon rehberini ac' : 'Bu tarayici rehber secimini desteklemiyor'}
+        >
+          <Contact className="h-4 w-4" aria-hidden="true" />
           Rehberden Sec
         </Button>
 
@@ -175,10 +128,10 @@ export default function CustomerQuickPick({ customers = [], onSelect, onError })
         </div>
       </div>
 
-      {!contactPicker && (
+      {!canPickContacts && (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-cream-muted">
           <Search className="h-3.5 w-3.5" aria-hidden="true" />
-          iPhone/Safari rehbere direkt erisim vermeyebilir; kisi paylasimindan .vcf secerek veya hazir musterilerden arayarak devam edebilirsin.
+          iPhone/Safari web sitelerine rehberi direkt actirmiyor. Android Chrome destekliyorsa bu buton aktif olur; diger cihazlarda hazir musterilerde arama kullanilir.
         </p>
       )}
     </div>

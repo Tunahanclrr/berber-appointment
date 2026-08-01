@@ -44,6 +44,8 @@ export function buildAppointmentMessage({ shopName, appointment, status = 'confi
     `Tarih: ${date}`,
     `Saat: ${time}`,
     price != null ? `Ucret: ${formatPrice(price)}` : '',
+    appointment.appointment_code ? `Randevu kodunuz: ${appointment.appointment_code}` : '',
+    appointment.appointment_code ? 'Bu kodu kimseyle paylasmayin.' : '',
     'Gorusmek uzere.',
   ].filter(Boolean).join('\n')
 }

@@ -42,9 +42,11 @@ export default function Landing() {
     },
     {
       title: 'Musteri',
-      desc: 'Dukkan adini bul, musait saatlerden birini sec ve randevunu olustur.',
+      desc: 'Dukkan adini bul, musait saatlerden birini sec ve randevunu olustur. Mevcut randevunu kodunla yonetebilirsin.',
       to: '/book',
       cta: 'Randevu Al',
+      secondaryTo: '/appointment',
+      secondaryCta: 'Randevumu Yonet',
     },
   ]
 
@@ -56,6 +58,9 @@ export default function Landing() {
           <BrandLogo size="md" />
         </Link>
         <div className="flex flex-wrap gap-2">
+          <Link to="/appointment">
+            <Button variant="ghost" size="sm">Randevumu Yonet</Button>
+          </Link>
           <Link to="/login">
             <Button variant="secondary" size="sm">Dukkan Girisi</Button>
           </Link>
@@ -88,6 +93,9 @@ export default function Landing() {
               </Link>
               <Link to="/book">
                 <Button variant="secondary" size="lg" className="w-full min-[420px]:w-auto">Demo Randevu Al</Button>
+              </Link>
+              <Link to="/appointment">
+                <Button variant="ghost" size="lg" className="w-full min-[420px]:w-auto">Randevumu Yonet</Button>
               </Link>
             </div>
           </motion.div>
@@ -161,11 +169,18 @@ export default function Landing() {
                       </Button>
                     </a>
                   ) : (
-                    <Link to={role.to} className="mt-5 block">
-                      <Button variant="secondary" className="w-full">
-                        {role.cta}
-                      </Button>
-                    </Link>
+                    <div className="mt-5 grid gap-2">
+                      <Link to={role.to} className="block">
+                        <Button variant="secondary" className="w-full">
+                          {role.cta}
+                        </Button>
+                      </Link>
+                      {role.secondaryTo && (
+                        <Link to={role.secondaryTo} className="block">
+                          <Button variant="ghost" className="w-full">{role.secondaryCta}</Button>
+                        </Link>
+                      )}
+                    </div>
                   )}
                 </div>
               </motion.article>

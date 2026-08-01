@@ -183,11 +183,19 @@ export async function showStaffAppointmentNotification(appointment) {
 }
 
 export async function notifyAppointmentCreated(appointmentId) {
+  return notifyAppointmentEvent(appointmentId, 'created')
+}
+
+export async function notifyAppointmentUpdated(appointmentId, eventType) {
+  return notifyAppointmentEvent(appointmentId, eventType)
+}
+
+async function notifyAppointmentEvent(appointmentId, eventType = 'created') {
   if (!appointmentId) return
   if (isLocalDevHost() && !PUSH_FUNCTION_URL) return
 
   try {
-    await invokePushSender({ appointment_id: appointmentId })
+    await invokePushSender({ appointment_id: appointmentId, event_type: eventType })
   } catch (error) {
     console.warn('Push bildirimi gonderilemedi:', error)
   }
