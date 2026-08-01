@@ -145,6 +145,9 @@ export async function handler(event) {
       title: 'Randevu guncellendi',
       body: `${appointment.customer_name} - ${appointment.appointment_date} ${String(appointment.start_time).slice(0, 5)}`,
     }
+    // Musteri tarafindaki degisiklikler dukkan sahibinin de dahil oldugu tum kayitli cihazlara gider.
+    // Yeni randevular ise yalnizca randevunun atandigi personele gonderilmeye devam eder.
+    const targetEmployeeId = ['rescheduled', 'cancelled'].includes(eventType) ? null : appointment.employee_id
     const result = await sendPushes(supabase, subscriptions || [], JSON.stringify({
       ...notification,
       tag: `appointment-${eventType}-${appointment.id}`,
@@ -154,7 +157,7 @@ export async function handler(event) {
         shopName: appointment.shops?.name,
         employeeName: appointment.employees?.name,
       },
-    }), appointment.employee_id || null)
+    }), targetEmployeeId || null)
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true, ...result }) }
   } catch (error) {

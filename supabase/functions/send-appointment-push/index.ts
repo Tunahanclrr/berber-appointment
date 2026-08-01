@@ -165,7 +165,9 @@ serve(async req => {
       },
     })
 
-    const result = await sendPushes(admin, subscriptions || [], payload, appointment.employee_id || null)
+    // Musteri degisiklikleri, randevu atamasi fark etmeksizin dukkanin tum kayitli cihazlarina gider.
+    const targetEmployeeId = ['rescheduled', 'cancelled'].includes(event_type) ? null : appointment.employee_id
+    const result = await sendPushes(admin, subscriptions || [], payload, targetEmployeeId || null)
 
     return new Response(JSON.stringify({
       ok: true,
