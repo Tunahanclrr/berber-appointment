@@ -6,6 +6,7 @@ export default function ConfirmDialog({
   title,
   message,
   confirmText = 'Onayla',
+  confirmVariant = 'danger',
   cancelText = 'Vazgec',
   loading = false,
   onConfirm,
@@ -22,7 +23,7 @@ export default function ConfirmDialog({
           <Button variant="secondary" className="flex-1" onClick={onCancel} disabled={loading}>
             {cancelText}
           </Button>
-          <Button variant="danger" className="flex-1" onClick={onConfirm} disabled={loading}>
+          <Button variant={confirmVariant} className="flex-1" onClick={onConfirm} disabled={loading}>
             {loading ? 'Cikiliyor...' : confirmText}
           </Button>
         </div>

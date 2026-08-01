@@ -12,6 +12,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 function getAppointmentStartDate(appointment) {
   if (!appointment) return null
@@ -45,6 +46,7 @@ export default function CustomerAppointment() {
   const [bookedAppointments, setBookedAppointments] = useState([])
   const [loading, setLoading] = useState(false)
   const [rescheduling, setRescheduling] = useState(false)
+  const [rescheduleConfirmOpen, setRescheduleConfirmOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -378,7 +380,7 @@ export default function CustomerAppointment() {
                   <div className="mt-5 grid gap-2 sm:grid-cols-2">
                     <Button
                       className="w-full"
-                      onClick={rescheduleAppointment}
+                      onClick={() => setRescheduleConfirmOpen(true)}
                       disabled={!manageable || !hasTimeChanged || rescheduling}
                     >
                       {rescheduling ? 'Guncelleniyor...' : 'Yeni Saate Ertele'}
@@ -403,6 +405,20 @@ export default function CustomerAppointment() {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={rescheduleConfirmOpen}
+        title="Randevu saati guncellensin mi?"
+        message={`Randevun ${selectedDate ? formatDateLabel(selectedDate) : ''} ${selectedTime || ''} saatine alinacak ve isletme onayina sunulacak.`}
+        confirmText="Evet, guncelle"
+        confirmVariant="primary"
+        cancelText="Vazgec"
+        loading={rescheduling}
+        onCancel={() => setRescheduleConfirmOpen(false)}
+        onConfirm={async () => {
+          await rescheduleAppointment()
+          setRescheduleConfirmOpen(false)
+        }}
+      />
     </div>
   )
 }

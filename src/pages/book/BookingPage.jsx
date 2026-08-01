@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Check, Copy } from 'lucide-react'
 import { format, addDays } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
@@ -38,6 +39,7 @@ export default function BookingPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [appointmentCode, setAppointmentCode] = useState('')
+  const [codeCopied, setCodeCopied] = useState(false)
 
   const [serviceIds, setServiceIds] = useState([])
   const [employeeId, setEmployeeId] = useState('')
@@ -203,6 +205,7 @@ export default function BookingPage() {
   function resetForAnotherAppointment() {
     setSuccess(false)
     setAppointmentCode('')
+    setCodeCopied(false)
     setStep(0)
     setError('')
     setSubmitting(false)
@@ -214,6 +217,17 @@ export default function BookingPage() {
     setCustomerPhone('')
     setBooked([])
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function copyAppointmentCode() {
+    if (!appointmentCode) return
+    try {
+      await navigator.clipboard.writeText(appointmentCode)
+      setCodeCopied(true)
+      window.setTimeout(() => setCodeCopied(false), 2000)
+    } catch {
+      setError('Kod kopyalanamadi. Lutfen manuel olarak kopyala.')
+    }
   }
 
   async function handleSubmit() {
@@ -345,10 +359,17 @@ export default function BookingPage() {
             {appointmentCode && (
               <div className="mt-6 rounded-xl border border-gold/30 bg-gold/10 p-4">
                 <p className="text-sm text-cream-muted">Randevu yonetim kodun</p>
-                <p className="mt-1 select-all font-mono text-3xl font-bold tracking-widest text-gold">{appointmentCode}</p>
+                <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
+                  <p className="select-all font-mono text-3xl font-bold tracking-widest text-gold">{appointmentCode}</p>
+                  <Button variant="secondary" size="sm" onClick={copyAppointmentCode} aria-label="Randevu kodunu kopyala">
+                    {codeCopied ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
+                    {codeCopied ? 'Kopyalandi' : 'Kodu Kopyala'}
+                  </Button>
+                </div>
                 <p className="mt-2 text-xs leading-5 text-cream-muted">
                   Bu kodla randevunu goruntuleyebilir, uygun sure icinde erteleyebilir veya iptal edebilirsin.
                 </p>
+                <p className="mt-2 text-xs font-medium text-cream-muted">Bu kodu kimseyle paylasma.</p>
               </div>
             )}
 
