@@ -38,6 +38,21 @@ SUPABASE_URL=SUPABASE_URL_BURAYA
 SUPABASE_SERVICE_ROLE_KEY=SERVICE_ROLE_KEY_BURAYA
 ```
 
+### Vercel kullaniyorsan
+
+Vercel > Project > Settings > Environment Variables icinde su degerleri
+**Production** icin ekle ve ardindan yeniden deploy et:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT`
+
+Projedeki `/api/public-config` endpointi public anahtari tarayiciya verir;
+`VAPID_PRIVATE_KEY` hicbir zaman istemciye aktarilmaz. `/api/send-appointment-push`
+endpointi ise Vercel uzerinden bildirimleri gonderir.
+
 ## 3. Edge Function Deploy Et
 
 ```bash

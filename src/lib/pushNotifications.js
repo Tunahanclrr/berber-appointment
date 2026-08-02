@@ -81,17 +81,26 @@ async function getPublicVapidKey() {
     return cachedPublicVapidKey
   }
 
-  const response = await fetch('/.netlify/functions/public-config')
-  if (response.ok) {
-    const data = await response.json().catch(() => null)
-    const runtimeKey = String(data?.vapidPublicKey || '').trim()
-    if (runtimeKey) {
-      cachedPublicVapidKey = runtimeKey
-      return cachedPublicVapidKey
+  // VITE_ ile baslamayan ortam degiskenleri tarayici derlemesine eklenmez.
+  // Bu nedenle Vercel/Netlify sunucusundan public VAPID anahtarini aliriz.
+  // VAPID public key zaten tarayiciya verilmek uzere tasarlanmistir.
+  for (const url of ['/api/public-config', '/.netlify/functions/public-config']) {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) continue
+
+      const data = await response.json().catch(() => null)
+      const runtimeKey = String(data?.vapidPublicKey || '').trim()
+      if (runtimeKey) {
+        cachedPublicVapidKey = runtimeKey
+        return cachedPublicVapidKey
+      }
+    } catch {
+      // Diger deploy saglayicisinin adresini dene.
     }
   }
 
-  throw new Error('VAPID public key bulunamadi. Netlify environment icinde VAPID_PUBLIC_KEY veya VITE_VAPID_PUBLIC_KEY ekli olmali.')
+  throw new Error('VAPID public key bulunamadi. Vercel Environment Variables icinde VAPID_PUBLIC_KEY ekli olmali; degisiklikten sonra yeniden deploy et.')
 }
 
 export async function getStaffPushSubscriptionStatus({ shopId, employeeId } = {}) {
@@ -143,12 +152,17 @@ export async function enableStaffPushNotifications({ shopId, employeeId, request
   await navigator.serviceWorker.ready
 
   let subscription = await registration.pushManager.getSubscription()
+  // Anahtar okunamiyorsa mevcut aboneligi silme. Bu, gecici bir deploy/
+  // konfigurasyon hatasinda cihazin bildirimlerini kaybetmesini onler.
+  const publicVapidKey = renewSubscription || !subscription
+    ? await getPublicVapidKey()
+    : ''
+
   if (subscription && renewSubscription) {
     await subscription.unsubscribe()
     subscription = null
   }
   if (!subscription) {
-    const publicVapidKey = await getPublicVapidKey()
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
@@ -260,6 +274,7 @@ async function invokePushSender(body) {
   const errors = []
   const netlifyUrls = [
     String(PUSH_FUNCTION_URL || '').trim(),
+    isLocalDevHost() ? '' : '/api/send-appointment-push',
     isLocalDevHost() ? '' : '/.netlify/functions/send-appointment-push',
   ].filter(Boolean)
 

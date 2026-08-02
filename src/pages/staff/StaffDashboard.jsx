@@ -724,7 +724,7 @@ export default function StaffDashboard() {
       setPushStatus('Bildirimler acildi. Yeni randevular bu telefona gelecek.')
     } catch (pushError) {
       setPushEnabled(false)
-      setPushStatus('Bildirimler yenilenemedi. Telefon bildirim iznini kontrol edip tekrar dene.')
+      setPushStatus(pushError.message || 'Bildirimler yenilenemedi. Telefon bildirim iznini kontrol edip tekrar dene.')
     }
 
     setPushLoading(false)
