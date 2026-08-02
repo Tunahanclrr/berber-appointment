@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { addDays, format } from 'date-fns'
+import { addDays, addMonths, endOfMonth, format, getDay, startOfMonth, subMonths } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
 import { useStaffStore } from '../../store/staffStore'
 import { addMinutes, formatPrice, formatTime, isOverlapping, todayISO } from '../../lib/time'
 import { getAppointmentDurationLabel, getAppointmentPriceLabel, getAppointmentPriceValue, getAppointmentServiceName } from '../../lib/appointmentSummary'
 import { getEffectiveWorkingHours, getWorkingHoursForDate, generateSlots } from '../../lib/slots'
-import { Bell, Filter, Plus, X } from 'lucide-react'
+import { Bell, CalendarDays, ChevronLeft, ChevronRight, Filter, Plus, X } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -64,8 +64,10 @@ export default function StaffDashboard() {
   const [commissionRate, setCommissionRate] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [dateFrom, setDateFrom] = useState(todayISO())
-  const [dateTo, setDateTo] = useState(format(addDays(new Date(), 30), 'yyyy-MM-dd'))
+  const [dateFrom, setDateFrom] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [dateTo, setDateTo] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()))
+  const [selectedDate, setSelectedDate] = useState(todayISO())
   const [filterStatus, setFilterStatus] = useState('')
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -95,20 +97,46 @@ export default function StaffDashboard() {
     if (range === 'today') {
       setDateFrom(todayDate)
       setDateTo(todayDate)
+      setSelectedDate(todayDate)
+      setCalendarMonth(startOfMonth(new Date()))
     } else if (range === 'week') {
       setDateFrom(todayDate)
       setDateTo(addDaysISO(todayDate, 6))
+      setSelectedDate('')
     } else if (range === 'month') {
-      setDateFrom(todayDate)
-      setDateTo(addDaysISO(todayDate, 30))
+      setDateFrom(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+      setDateTo(format(endOfMonth(new Date()), 'yyyy-MM-dd'))
+      setSelectedDate('')
+      setCalendarMonth(startOfMonth(new Date()))
     } else {
       setDateFrom('2000-01-01')
       setDateTo('2099-12-31')
+      setSelectedDate('')
     }
+  }
+
+  function changeCalendarMonth(amount) {
+    const nextMonth = startOfMonth(addMonths(calendarMonth, amount))
+    setCalendarMonth(nextMonth)
+    setDateFrom(format(nextMonth, 'yyyy-MM-dd'))
+    setDateTo(format(endOfMonth(nextMonth), 'yyyy-MM-dd'))
+    setSelectedDate('')
+  }
+
+  function selectCalendarDate(date) {
+    const isoDate = format(date, 'yyyy-MM-dd')
+    setSelectedDate(isoDate)
+    // Takvimdeki tum gunlerin doluluk bilgisi gorunmeye devam etsin diye
+    // veri ay bazinda yuklenir; liste sadece secilen gunu gosterir.
+    const month = startOfMonth(date)
+    setCalendarMonth(month)
+    setDateFrom(format(month, 'yyyy-MM-dd'))
+    setDateTo(format(endOfMonth(month), 'yyyy-MM-dd'))
   }
 
   const filteredAppointments = useMemo(() => {
     let result = appointments
+    if (selectedDate) result = result.filter(a => a.appointment_date === selectedDate)
     if (filterStatus) result = result.filter(a => a.status === filterStatus)
     if (search) {
       const q = search.toLowerCase()
@@ -119,6 +147,7 @@ export default function StaffDashboard() {
       )
     }
     return [...result].sort((a, b) => {
+      if (selectedDate) return String(a.start_time || '').localeCompare(String(b.start_time || ''))
       if (highlightedAppointmentId) {
         if (a.id === highlightedAppointmentId) return -1
         if (b.id === highlightedAppointmentId) return 1
@@ -130,7 +159,24 @@ export default function StaffDashboard() {
       if (dateDiff) return dateDiff
       return String(b.start_time || '').localeCompare(String(a.start_time || ''))
     })
-  }, [appointments, filterStatus, search, highlightedAppointmentId])
+  }, [appointments, selectedDate, filterStatus, search, highlightedAppointmentId])
+
+  const appointmentsByDate = useMemo(() => appointments.reduce((map, appointment) => {
+    const key = appointment.appointment_date
+    if (!key) return map
+    map.set(key, [...(map.get(key) || []), appointment])
+    return map
+  }, new Map()), [appointments])
+
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth)
+    const dayCount = endOfMonth(calendarMonth).getDate()
+    const leadingDays = (getDay(monthStart) + 6) % 7
+    return Array.from({ length: leadingDays + dayCount }, (_, index) => {
+      if (index < leadingDays) return null
+      return addDays(monthStart, index - leadingDays)
+    })
+  }, [calendarMonth])
 
   const stats = useMemo(() => ({
     today: appointments.filter(a => a.appointment_date === today && a.status !== 'cancelled' && a.status !== 'no_show').length,
@@ -925,6 +971,13 @@ export default function StaffDashboard() {
             </p>
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <a
+              href="#staff-calendar"
+              className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-gold/25 bg-white px-3 py-2 text-sm leading-tight text-cream sm:hidden"
+            >
+              <CalendarDays className="h-4 w-4" aria-hidden="true" />
+              Takvim
+            </a>
             <Button variant="secondary" size="sm" className="w-full sm:hidden" onClick={() => setShowFilters(prev => !prev)}>
               <Filter className="h-4 w-4" aria-hidden="true" />
               Filtrele
@@ -1021,6 +1074,72 @@ export default function StaffDashboard() {
           )}
         </Card>
 
+        <div id="staff-calendar" className="scroll-mt-4">
+        <Card className="border-gold/20">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
+              <CalendarDays className="h-5 w-5 text-gold" aria-hidden="true" />
+              <div>
+                <h2 className="font-display text-lg font-semibold text-cream">Randevu Takvimi</h2>
+                <p className="text-xs text-cream-muted">Bir gun secerek o gunun randevularini gor.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={() => changeCalendarMonth(-1)} aria-label="Onceki ay">
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <span className="min-w-35 text-center text-sm font-semibold text-cream">
+                {format(calendarMonth, 'MMMM yyyy', { locale: tr })}
+              </span>
+              <Button variant="secondary" size="sm" onClick={() => changeCalendarMonth(1)} aria-label="Sonraki ay">
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px] text-cream-muted sm:text-xs">
+            {['Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt', 'Paz'].map(day => <span key={day} className="py-1">{day}</span>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {calendarDays.map((date, index) => {
+              if (!date) return <div key={`empty-${index}`} />
+              const isoDate = format(date, 'yyyy-MM-dd')
+              const dayAppointments = appointmentsByDate.get(isoDate) || []
+              const activeCount = dayAppointments.filter(item => !['cancelled', 'no_show'].includes(item.status)).length
+              const isSelected = isoDate === selectedDate
+              const isToday = isoDate === today
+
+              return (
+                <button
+                  key={isoDate}
+                  type="button"
+                  onClick={() => selectCalendarDate(date)}
+                  className={`min-h-14 rounded-lg border p-1 text-left transition active:scale-95 sm:min-h-18 sm:p-2 ${
+                    isSelected
+                      ? 'border-gold bg-gold/15 ring-1 ring-gold/40'
+                      : isToday
+                        ? 'border-gold/50 bg-gold/5 hover:border-gold'
+                        : 'border-gold/10 bg-navy/40 hover:border-gold/50'
+                  }`}
+                  aria-label={`${format(date, 'd MMMM yyyy', { locale: tr })}, ${activeCount} randevu`}
+                >
+                  <span className={`block font-mono text-xs sm:text-sm ${isSelected || isToday ? 'text-gold' : 'text-cream'}`}>{format(date, 'd')}</span>
+                  {activeCount > 0 && (
+                    <span className="mt-1 inline-flex min-w-5 items-center justify-center rounded-full bg-gold px-1 py-0.5 text-[10px] font-bold text-navy">
+                      {activeCount}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-cream-muted">
+            <span>{selectedDate ? `${format(new Date(`${selectedDate}T12:00:00`), 'd MMMM yyyy, EEEE', { locale: tr })} secili.` : 'Ay icindeki tum randevular listeleniyor.'}</span>
+            {selectedDate && <Button size="sm" variant="secondary" onClick={() => setSelectedDate('')}>Gun filtresini kaldir</Button>}
+          </div>
+        </Card>
+        </div>
+
         <Card className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
           <div className="mb-4 flex flex-wrap gap-2">
             {[
@@ -1035,8 +1154,8 @@ export default function StaffDashboard() {
             ))}
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <Input label="Baslangic" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-            <Input label="Bitis" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            <Input label="Baslangic" type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setSelectedDate('') }} />
+            <Input label="Bitis" type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setSelectedDate('') }} />
             <Select label="Durum" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="">Tumu</option>
               <option value="pending">Bekliyor</option>
@@ -1052,7 +1171,7 @@ export default function StaffDashboard() {
           </div>
         </Card>
 
-        <Card title="Randevularim">
+        <Card title={selectedDate ? `${format(new Date(`${selectedDate}T12:00:00`), 'd MMMM', { locale: tr })} randevularim` : 'Randevularim'}>
           {filteredAppointments.length === 0 ? (
             <div className="space-y-2 text-sm text-cream-muted">
               <p>Randevu yok.</p>
