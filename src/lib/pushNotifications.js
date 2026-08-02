@@ -94,7 +94,7 @@ async function getPublicVapidKey() {
   throw new Error('VAPID public key bulunamadi. Netlify environment icinde VAPID_PUBLIC_KEY veya VITE_VAPID_PUBLIC_KEY ekli olmali.')
 }
 
-export async function getStaffPushSubscriptionStatus() {
+export async function getStaffPushSubscriptionStatus({ shopId, employeeId } = {}) {
   const support = getPushSupportStatus()
   if (!support.supported) return { enabled: false, reason: support.reason }
   if (Notification.permission !== 'granted') return { enabled: false, reason: 'Bildirim izni bekleniyor.' }
@@ -103,18 +103,38 @@ export async function getStaffPushSubscriptionStatus() {
   await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
 
+  if (!subscription) return { enabled: false, reason: 'Bu cihazda bildirim aboneligi yok.' }
+
+  // Bir telefon ayni uygulamada farkli bir berber/personel hesabi ile
+  // kullanilabilir. Tarayici aboneliginin var olmasi tek basina yeterli
+  // degildir; abonelik mevcut oturuma da bagli olmalidir.
+  if (!shopId || !employeeId) return { enabled: true, reason: '' }
+
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .select('id')
+    .eq('endpoint', subscription.endpoint)
+    .eq('shop_id', shopId)
+    .eq('employee_id', employeeId)
+    .maybeSingle()
+
+  if (error) throw error
   return {
-    enabled: Boolean(subscription),
-    reason: subscription ? '' : 'Bu cihazda bildirim aboneligi yok.',
+    enabled: Boolean(data),
+    reason: data ? '' : 'Bu cihazdaki bildirim aboneligi aktif personel hesabina bagli degil.',
   }
 }
 
-export async function enableStaffPushNotifications({ shopId, employeeId }) {
+export async function enableStaffPushNotifications({ shopId, employeeId, requestPermission = true }) {
   const support = getPushSupportStatus()
   if (!support.supported) throw new Error(support.reason)
   if (!shopId || !employeeId) throw new Error('Personel oturumu eksik. Cikis yapip tekrar giris yap.')
 
-  const permission = await Notification.requestPermission()
+  const permission = Notification.permission === 'granted'
+    ? 'granted'
+    : requestPermission
+      ? await Notification.requestPermission()
+      : Notification.permission
   if (permission !== 'granted') {
     throw new Error('Bildirim izni verilmedi. Tarayici ayarlarindan izin verebilirsin.')
   }
@@ -146,6 +166,23 @@ export async function enableStaffPushNotifications({ shopId, employeeId }) {
 
   if (error) throw error
   return true
+}
+
+// Bildirim izni zaten verildiyse, her personel girisinde cihaz aboneligini
+// o anki dukkan/personel kaydina tasir. Izin istemini otomatik yapmaz.
+export async function syncStaffPushNotifications({ shopId, employeeId }) {
+  const support = getPushSupportStatus()
+  if (!support.supported) return { enabled: false, synced: false, reason: support.reason }
+
+  if (Notification.permission !== 'granted') {
+    return { enabled: false, synced: false, reason: 'Bildirim izni bekleniyor.' }
+  }
+
+  const status = await getStaffPushSubscriptionStatus({ shopId, employeeId })
+  if (status.enabled) return { enabled: true, synced: false, reason: '' }
+
+  await enableStaffPushNotifications({ shopId, employeeId, requestPermission: false })
+  return { enabled: true, synced: true, reason: '' }
 }
 
 export async function showStaffAppointmentNotification(appointment, eventType = 'created') {

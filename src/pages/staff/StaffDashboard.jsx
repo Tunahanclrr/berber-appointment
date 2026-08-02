@@ -23,6 +23,7 @@ import {
   notifyAppointmentCreated,
   sendTestStaffPushNotification,
   showStaffAppointmentNotification,
+  syncStaffPushNotifications,
 } from '../../lib/pushNotifications'
 import { formatTurkishMobile, getTurkishMobileError, normalizeTurkishMobile } from '../../lib/phone'
 import { loadCustomerOptions, upsertCustomer } from '../../lib/customers'
@@ -476,13 +477,28 @@ export default function StaffDashboard() {
   useEffect(() => {
     if (!token) return
 
-    getStaffPushSubscriptionStatus()
+    if (!shopId || !employeeId) return
+
+    syncStaffPushNotifications({ shopId, employeeId })
       .then(status => {
         setPushEnabled(status.enabled)
-        if (status.enabled) setPushStatus('Bildirimler acik. Yeni randevular bu cihaza gelecek.')
+        if (status.enabled) {
+          setPushStatus(status.synced
+            ? 'Bildirimler bu personel hesabi icin etkinlestirildi. Yeni randevular bu telefona gelecek.'
+            : 'Bildirimler acik. Yeni randevular bu cihaza gelecek.')
+        }
       })
-      .catch(() => setPushEnabled(false))
-  }, [token])
+      .catch(() => {
+        // Izin acik olsa bile hesap bazli abonelik okunamazsa butonla tekrar
+        // baglanabilsin; "acik" goruntusu verilmeyecek.
+        getStaffPushSubscriptionStatus({ shopId, employeeId })
+          .then(status => {
+            setPushEnabled(status.enabled)
+            if (status.reason) setPushStatus(status.reason)
+          })
+          .catch(() => setPushEnabled(false))
+      })
+  }, [token, shopId, employeeId])
 
   useEffect(() => {
     if (!token || !shopId) return
