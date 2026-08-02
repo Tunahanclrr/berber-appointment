@@ -26,6 +26,8 @@ self.addEventListener('push', event => {
     tag: payload.tag || `appointment-${Date.now()}`,
     data: payload.data || { url: '/staff/dashboard' },
     requireInteraction: true,
+    renotify: true,
+    silent: false,
   }
 
   event.waitUntil(self.registration.showNotification(title, options))

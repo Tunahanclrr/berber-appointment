@@ -31,7 +31,10 @@ async function sendPushes(supabase, subscriptions, payload, targetEmployeeId = n
           p256dh: subscription.p256dh,
           auth: subscription.auth,
         },
-      }, payload)
+      }, payload, {
+        TTL: 60 * 60 * 24,
+        urgency: 'high',
+      })
     )
   )
 

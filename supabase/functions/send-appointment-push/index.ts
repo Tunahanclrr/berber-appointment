@@ -30,7 +30,10 @@ async function sendPushes(admin: ReturnType<typeof createClient>, subscriptions:
           p256dh: subscription.p256dh,
           auth: subscription.auth,
         },
-      }, payload).catch(error => {
+      }, payload, {
+        TTL: 60 * 60 * 24,
+        urgency: 'high',
+      }).catch(error => {
         console.error('Push send failed', {
           subscriptionId: subscription.id,
           statusCode: error?.statusCode,
