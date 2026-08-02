@@ -125,7 +125,7 @@ export async function getStaffPushSubscriptionStatus({ shopId, employeeId } = {}
   }
 }
 
-export async function enableStaffPushNotifications({ shopId, employeeId, requestPermission = true }) {
+export async function enableStaffPushNotifications({ shopId, employeeId, requestPermission = true, renewSubscription = false }) {
   const support = getPushSupportStatus()
   if (!support.supported) throw new Error(support.reason)
   if (!shopId || !employeeId) throw new Error('Personel oturumu eksik. Cikis yapip tekrar giris yap.')
@@ -143,6 +143,10 @@ export async function enableStaffPushNotifications({ shopId, employeeId, request
   await navigator.serviceWorker.ready
 
   let subscription = await registration.pushManager.getSubscription()
+  if (subscription && renewSubscription) {
+    await subscription.unsubscribe()
+    subscription = null
+  }
   if (!subscription) {
     const publicVapidKey = await getPublicVapidKey()
     subscription = await registration.pushManager.subscribe({
@@ -246,8 +250,8 @@ export async function sendTestStaffPushNotification(shopId, employeeId) {
   if (!employeeId) throw new Error('Personel bilgisi eksik.')
 
   const data = await invokePushSender({ test_shop_id: shopId, test_employee_id: employeeId })
-  if (!data?.ok) throw new Error(data?.error || 'Test bildirimi gonderilemedi.')
-  if (!data.sent) throw new Error('Kayitli bildirim cihazi bulunamadi. Once Bildirimleri Ac butonuna bas.')
+  if (!data?.ok) throw new Error('Bildirim servisine ulasilamadi. Biraz sonra tekrar dene.')
+  if (!data.sent) throw new Error('Bu personel hesabi icin bildirim cihazi henuz eslenemedi. Bildirimleri Yenile butonuna basip tekrar dene.')
 
   return data
 }

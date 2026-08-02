@@ -718,12 +718,13 @@ export default function StaffDashboard() {
     setPushStatus('')
 
     try {
-      await enableStaffPushNotifications({ shopId, employeeId })
+      // Yenileme, gecersiz kalmis tarayici endpointlerini de degistirir.
+      await enableStaffPushNotifications({ shopId, employeeId, renewSubscription: true })
       setPushEnabled(true)
       setPushStatus('Bildirimler acildi. Yeni randevular bu telefona gelecek.')
     } catch (pushError) {
       setPushEnabled(false)
-      setPushStatus(pushError.message)
+      setPushStatus('Bildirimler yenilenemedi. Telefon bildirim iznini kontrol edip tekrar dene.')
     }
 
     setPushLoading(false)
@@ -734,10 +735,12 @@ export default function StaffDashboard() {
     setPushStatus('')
 
     try {
+      // Testten hemen once aktif personel/cihaz eslesmesini tekrar kaydet.
+      await enableStaffPushNotifications({ shopId, employeeId })
       const result = await sendTestStaffPushNotification(shopId, employeeId)
       setPushStatus(`Test bildirimi gonderildi. Giden cihaz: ${result.sent}`)
     } catch (pushError) {
-      setPushStatus(pushError.message)
+      setPushStatus(pushError.message || 'Test bildirimi gonderilemedi. Lutfen tekrar dene.')
     }
 
     setTestPushLoading(false)
