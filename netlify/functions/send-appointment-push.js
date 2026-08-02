@@ -46,6 +46,16 @@ async function sendPushes(supabase, subscriptions, payload, targetEmployeeId = n
     )
     .map(({ subscription }) => subscription.id)
 
+  const failures = results
+    .map((result, index) => ({ result, subscription: uniqueSubscriptions[index] }))
+    .filter(({ result }) => result.status === 'rejected')
+    .map(({ result, subscription }) => ({
+      subscriptionId: subscription.id,
+      statusCode: result.reason?.statusCode || null,
+      message: result.reason?.message || 'Bilinmeyen push hatasi',
+      body: result.reason?.body || null,
+    }))
+
   if (expiredIds.length > 0) {
     await supabase.from('push_subscriptions').delete().in('id', expiredIds)
   }
@@ -54,6 +64,7 @@ async function sendPushes(supabase, subscriptions, payload, targetEmployeeId = n
     total: uniqueSubscriptions.length,
     sent: results.filter(result => result.status === 'fulfilled').length,
     failed: results.filter(result => result.status === 'rejected').length,
+    failures,
   }
 }
 

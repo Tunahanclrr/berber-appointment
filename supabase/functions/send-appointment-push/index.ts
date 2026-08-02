@@ -53,6 +53,16 @@ async function sendPushes(admin: ReturnType<typeof createClient>, subscriptions:
     )
     .map(({ subscription }) => subscription.id)
 
+  const failures = results
+    .map((result, index) => ({ result, subscription: relatedSubscriptions[index] }))
+    .filter(({ result }) => result.status === 'rejected')
+    .map(({ result, subscription }) => ({
+      subscriptionId: subscription.id,
+      statusCode: result.reason?.statusCode || null,
+      message: result.reason?.message || 'Bilinmeyen push hatasi',
+      body: result.reason?.body || null,
+    }))
+
   if (expiredIds.length > 0) {
     await admin.from('push_subscriptions').delete().in('id', expiredIds)
   }
@@ -61,6 +71,7 @@ async function sendPushes(admin: ReturnType<typeof createClient>, subscriptions:
     total: relatedSubscriptions.length,
     sent: results.filter(result => result.status === 'fulfilled').length,
     failed: results.filter(result => result.status === 'rejected').length,
+    failures,
   }
 }
 

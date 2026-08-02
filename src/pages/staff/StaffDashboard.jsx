@@ -958,6 +958,16 @@ export default function StaffDashboard() {
           </div>
         )}
 
+        <section className="flex flex-col gap-3 rounded-xl border border-gold/20 bg-navy-light p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold text-cream">Telefon bildirimleri</p>
+            <p className="mt-1 text-sm text-cream-muted">Uygulama kapalıyken de bildirim almak için cihaz kaydını yenile.</p>
+          </div>
+          <Button onClick={handleEnablePush} disabled={pushLoading} className="w-full shrink-0 sm:w-auto">
+            {pushLoading ? 'Yenileniyor...' : 'Bildirimleri Yenile'}
+          </Button>
+        </section>
+
         <Card className="border-gold/20 bg-gold/5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -970,10 +980,6 @@ export default function StaffDashboard() {
             </div>
           </div>
         </Card>
-
-        <div className="rounded-lg border border-gold/10 bg-gold/5 px-3 py-2 text-xs text-cream-muted">
-          Aktif oturum: {shopName || 'Dukkan yok'} / {employeeName || 'Personel yok'} · shopId: {shopId || '-'} · employeeId: {employeeId || '-'}
-        </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
