@@ -13,6 +13,7 @@ import { getSavedBookingPath, isLockedBookingPwa } from './lib/pwa'
 const Landing = lazy(() => import('./pages/Landing'))
 const Login = lazy(() => import('./pages/Login'))
 const ShopContact = lazy(() => import('./pages/ShopContact'))
+const LegalPlaceholder = lazy(() => import('./pages/LegalPlaceholder'))
 const ShopSetup = lazy(() => import('./pages/ShopSetup'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Employees = lazy(() => import('./pages/Employees'))
@@ -65,6 +66,8 @@ export default function App() {
 
               <Route path="/login" element={<Login />} />
               <Route path="/iletisim" element={<ShopContact />} />
+              <Route path="/gizlilik-politikasi" element={<LegalPlaceholder />} />
+              <Route path="/kvkk-aydinlatma" element={<LegalPlaceholder />} />
               <Route path="/register" element={<Navigate to="/iletisim" replace />} />
 
               <Route path="/book" element={<BookSlugEntry />} />
