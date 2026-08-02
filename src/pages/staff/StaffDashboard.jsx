@@ -346,8 +346,8 @@ export default function StaffDashboard() {
           setLoading(false)
           return
         }
-      } catch (directError) {
-        setError(directError.message)
+      } catch {
+        // Sorgu bir sonraki güvenli geri dönüş yöntemiyle devam eder.
       }
     }
 
@@ -361,8 +361,8 @@ export default function StaffDashboard() {
           setLoading(false)
           return
         }
-      } catch (employeeOnlyError) {
-        setError(employeeOnlyError.message)
+      } catch {
+        // Sorgu bir sonraki güvenli geri dönüş yöntemiyle devam eder.
       }
     }
 
@@ -375,16 +375,12 @@ export default function StaffDashboard() {
         setLoading(false)
         return
       }
-    } catch (visibleFallbackError) {
-      setError(visibleFallbackError.message)
+    } catch {
+      // Boş liste göstermek, teknik veritabanı ayrıntılarını personele göstermemekten daha uygundur.
     }
 
     const emptyResult = directAppointments || employeeOnlyAppointments || visibleFallbackAppointments || []
     setAppointments(emptyResult)
-    if (emptyResult.length === 0) {
-      setError(`Staff randevu sorgusu bos dondu. Oturum: ${shopName || 'Dukkan yok'} / ${employeeName || 'Personel yok'}. shopId=${shopId || '-'} employeeId=${employeeId || '-'}. Supabase staff oturumu appointments tablosunu okuyamiyor. SUPABASE_SETUP.sql dosyasini SQL Editor'da calistirip personel panelinden cik-gir yap.`)
-    }
-
     setLoading(false)
   }
 
@@ -409,9 +405,7 @@ export default function StaffDashboard() {
           .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
     ]).then(([servicesRes, shopRes, employeeRes]) => {
-      if (servicesRes.error) setError(servicesRes.error.message)
-      if (shopRes.error) setError(shopRes.error.message)
-      if (employeeRes.error) setError(employeeRes.error.message)
+      // Arka plan verisi yüklenemezse teknik ayrıntıları personele gösterme.
       setServices(servicesRes.data || [])
       setShopWorkingHours(shopRes.data?.working_hours || null)
        setEmployeeWorkingHours(employeeRes.data?.working_hours || null)
@@ -424,11 +418,7 @@ export default function StaffDashboard() {
 
     loadCustomerOptions({ supabase, shopId, employeeId, limit: 200 })
       .then(setCustomers)
-      .catch(customersError => {
-        if (customersError) {
-          setError(customersError.message)
-        }
-      })
+      .catch(() => {})
   }, [shopId, employeeId])
 
   useEffect(() => {
@@ -936,8 +926,8 @@ export default function StaffDashboard() {
               <Filter className="h-4 w-4" aria-hidden="true" />
               Filtrele
             </Button>
-            <Button variant="secondary" size="sm" onClick={handleEnablePush} disabled={pushLoading || pushEnabled}>
-              {pushLoading ? 'Aciliyor...' : pushEnabled ? 'Bildirimler Acik' : 'Bildirimleri Ac'}
+            <Button variant="secondary" size="sm" onClick={handleEnablePush} disabled={pushLoading}>
+              {pushLoading ? 'Yenileniyor...' : pushEnabled ? 'Bildirimleri Yenile' : 'Bildirimleri Ac'}
             </Button>
             <Button variant="secondary" size="sm" onClick={handleTestPush} disabled={testPushLoading || !pushEnabled}>
               {testPushLoading ? 'Gonderiliyor...' : 'Test Bildirimi'}
@@ -955,7 +945,7 @@ export default function StaffDashboard() {
       <main className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
         {error && (
           <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
-            {error}
+            İşlem tamamlanamadı. Lütfen tekrar dene.
           </div>
         )}
 
