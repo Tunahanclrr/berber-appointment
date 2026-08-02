@@ -265,33 +265,47 @@ export default function BookingPage() {
         return
       }
 
-      const response = await fetch('/.netlify/functions/create-public-appointment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopId: shop.id,
-          employeeId,
-          serviceIds,
-          customerName,
-          customerPhone: normalizeTurkishMobile(customerPhone),
-          appointmentDate: date,
-          startTime,
-        }),
-      })
+      const payload = {
+        shopId: shop.id,
+        employeeId,
+        serviceIds,
+        customerName,
+        customerPhone: normalizeTurkishMobile(customerPhone),
+        appointmentDate: date,
+        startTime,
+      }
+      let result = null
+      let endpointFound = false
 
-      const responseText = await response.text()
-      const result = responseText ? JSON.parse(responseText) : null
+      for (const url of ['/api/create-public-appointment', '/.netlify/functions/create-public-appointment']) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const responseText = await response.text()
+        const data = responseText ? (() => {
+          try { return JSON.parse(responseText) } catch { return null }
+        })() : null
 
-      if (!response.ok || !result?.ok) {
-        if (response.status === 404) {
-          const fallbackResult = await createAppointmentFallback()
-          setAppointmentCode(fallbackResult.appointmentCode || '')
-          notifyAppointmentCreated(fallbackResult.appointmentId)
-          setSuccess(true)
-          return
+        // Netlify/Vercel bulunamayan bir function yerine HTML sayfasi
+        // donderebilir. Bu durumda diger saglayiciyi dene.
+        if (response.status === 404 || (!data && response.headers.get('content-type')?.includes('text/html'))) continue
+        endpointFound = true
+
+        if (!response.ok || !data?.ok) {
+          throw new Error(data?.error || 'Randevu olusturulamadi.')
         }
+        result = data
+        break
+      }
 
-        throw new Error(result?.error || 'Randevu olusturulamadi.')
+      if (!endpointFound) {
+        const fallbackResult = await createAppointmentFallback()
+        setAppointmentCode(fallbackResult.appointmentCode || '')
+        notifyAppointmentCreated(fallbackResult.appointmentId)
+        setSuccess(true)
+        return
       }
 
       notifyAppointmentCreated(result.appointmentId)

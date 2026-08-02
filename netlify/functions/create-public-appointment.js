@@ -73,7 +73,7 @@ export async function handler(event) {
   try {
     const body = JSON.parse(event.body || '{}')
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URI
     const serviceRoleKey = required('SUPABASE_SERVICE_ROLE_KEY')
     if (!supabaseUrl) throw new Error('SUPABASE_URL veya VITE_SUPABASE_URL Netlify environment icinde eksik')
 
