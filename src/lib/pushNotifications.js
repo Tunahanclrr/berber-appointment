@@ -2,6 +2,8 @@ import { supabase } from './supabase'
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
 const PUSH_FUNCTION_URL = import.meta.env.VITE_PUSH_FUNCTION_URL
+// Deploy sonrasi telefonlardaki eski service worker da guncellensin.
+const SERVICE_WORKER_URL = '/sw.js?v=appointment-open-v2'
 let cachedPublicVapidKey = ''
 
 function isLocalDevHost() {
@@ -108,7 +110,7 @@ export async function getStaffPushSubscriptionStatus({ shopId, employeeId } = {}
   if (!support.supported) return { enabled: false, reason: support.reason }
   if (Notification.permission !== 'granted') return { enabled: false, reason: 'Bildirim izni bekleniyor.' }
 
-  const registration = await navigator.serviceWorker.register('/sw.js')
+  const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL)
   await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
 
@@ -148,7 +150,7 @@ export async function enableStaffPushNotifications({ shopId, employeeId, request
     throw new Error('Bildirim izni verilmedi. Tarayici ayarlarindan izin verebilirsin.')
   }
 
-  const registration = await navigator.serviceWorker.register('/sw.js')
+  const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL)
   await navigator.serviceWorker.ready
 
   let subscription = await registration.pushManager.getSubscription()
@@ -208,7 +210,7 @@ export async function showStaffAppointmentNotification(appointment, eventType = 
     const support = getPushSupportStatus()
     if (!support.supported || Notification.permission !== 'granted') return false
 
-    const registration = await navigator.serviceWorker.register('/sw.js')
+    const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL)
     await navigator.serviceWorker.ready
 
     const time = String(appointment?.start_time || '').slice(0, 5)

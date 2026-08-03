@@ -36,7 +36,16 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close()
 
-  const targetUrl = event.notification.data?.url || '/staff/dashboard'
+  const notificationData = event.notification.data || {}
+  const appointmentId = notificationData.appointmentId
+  const targetPath = notificationData.url || (
+    appointmentId
+      ? `/staff/dashboard?appointmentId=${encodeURIComponent(appointmentId)}`
+      : '/staff/dashboard'
+  )
+  // iOS/Android tarayicilarinda goreli adres bazen PWA'nin ana ekranina
+  // doner. Tam adres hem yeni pencere hem acik pencere icin guvenilirdir.
+  const targetUrl = new URL(targetPath, self.location.origin).href
 
   event.waitUntil((async () => {
     const windowClients = await self.clients.matchAll({
@@ -45,9 +54,13 @@ self.addEventListener('notificationclick', event => {
     })
 
     for (const client of windowClients) {
-      if ('focus' in client) {
-        client.navigate(targetUrl)
-        return client.focus()
+      try {
+        const navigatedClient = await client.navigate(targetUrl)
+        if (navigatedClient && 'focus' in navigatedClient) {
+          return navigatedClient.focus()
+        }
+      } catch {
+        // Acik pencere yonlendirilemiyorsa asagida yeni pencere acilir.
       }
     }
 
