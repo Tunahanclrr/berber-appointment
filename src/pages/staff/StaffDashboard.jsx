@@ -258,10 +258,6 @@ export default function StaffDashboard() {
     return [...summaryLines, customNotes].filter(Boolean).join('\n')
   }
 
-  function isMissingRpc(rpcError) {
-    return rpcError?.code === 'PGRST202' || rpcError?.code === 'PGRST204' || rpcError?.message?.includes('Could not find the function')
-  }
-
   function normalizeAppointment(appointment) {
     return {
       ...appointment,
@@ -470,13 +466,13 @@ export default function StaffDashboard() {
         .order('name'),
       supabase
         .from('shops')
-           .select('working_hours, commission_rate')
+        .select('working_hours')
         .eq('id', shopId)
         .maybeSingle(),
       employeeId
         ? supabase
           .from('employees')
-          .select('working_hours')
+          .select('working_hours, commission_rate')
           .eq('id', employeeId)
           .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -663,21 +659,21 @@ export default function StaffDashboard() {
       p_status: status,
     })
 
-    if (rpcError && isMissingRpc(rpcError)) {
+    if (rpcError) {
+      // Eski Supabase kurulumlarinda RPC bulunmayabilir veya personel
+      // oturumu yenilenmis olabilir. Tablo politikasi izin verdigi surece
+      // ayni personelin (ya da atanmamis) randevusunu dogrudan guncelle.
       const { error: fallbackError } = await supabase
         .from('appointments')
         .update({ status })
         .eq('id', id)
         .eq('shop_id', shopId)
-        .eq('employee_id', employeeId)
+        .or(`employee_id.eq.${employeeId},employee_id.is.null`)
 
       if (fallbackError) {
-        setError(fallbackError.message)
+        setError(fallbackError.message || rpcError.message)
         return false
       }
-    } else if (rpcError) {
-      setError(rpcError.message)
-      return false
     }
 
     await load()
@@ -695,7 +691,8 @@ export default function StaffDashboard() {
     // Mobil tarayicilar, await sonrasinda acilan pencereyi pop-up olarak
     // engelleyebilir. Tiklama aninda bos pencereyi ayirip onay basariliysa
     // WhatsApp adresine yonlendiriyoruz.
-    const whatsappWindow = url ? window.open('', '_blank') : null
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    const whatsappWindow = url && !isMobile ? window.open('', '_blank') : null
     if (whatsappWindow) whatsappWindow.opener = null
 
     const updated = await updateStatus(appointment.id, status)
@@ -704,7 +701,11 @@ export default function StaffDashboard() {
       return
     }
 
-    if (whatsappWindow && url) {
+    if (url && isMobile) {
+      // Mobil/PWA'da ayni sekmede acmak, pop-up engeline takilmadan
+      // WhatsApp uygulamasina gecis yapar.
+      window.location.assign(url)
+    } else if (whatsappWindow && url) {
       whatsappWindow.location.replace(url)
     } else if (url) {
       // Tarayici bos pencereyi de engellerse, ayni sekmede WhatsApp'i ac.
