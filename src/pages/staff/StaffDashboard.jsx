@@ -372,6 +372,36 @@ export default function StaffDashboard() {
       .map(normalizeAppointment)
   }
 
+  async function loadHighlightedAppointment() {
+    if (!highlightedAppointmentId || !employeeId || !shopId) return null
+
+    const { data, error: queryError } = await supabase
+      .from('appointments')
+      .select(`
+        id,
+        employee_id,
+        service_id,
+        created_at,
+        customer_name,
+        customer_phone,
+        appointment_code,
+        appointment_date,
+        start_time,
+        end_time,
+        status,
+        notes,
+        employees(name),
+        services(name, duration, price)
+      `)
+      .eq('id', highlightedAppointmentId)
+      .eq('shop_id', shopId)
+      .eq('employee_id', employeeId)
+      .maybeSingle()
+
+    if (queryError) throw queryError
+    return data ? normalizeAppointment(data) : null
+  }
+
   async function load() {
     setError('')
     setLoading(true)
@@ -470,6 +500,31 @@ export default function StaffDashboard() {
   useEffect(() => {
     if (token) load()
   }, [token, employeeId, shopId, dateFrom, dateTo])
+
+  // Push bildirimiyle gelindiginde randevu mevcut ay/yukleme araliginin
+  // disinda olsa bile dogrudan bulunur, ilgili gune gecilir ve kart vurgulanir.
+  useEffect(() => {
+    if (!token || !highlightedAppointmentId || !shopId || !employeeId) return
+
+    let cancelled = false
+    loadHighlightedAppointment()
+      .then(appointment => {
+        if (cancelled || !appointment) return
+
+        const appointmentDate = new Date(`${appointment.appointment_date}T12:00:00`)
+        const month = startOfMonth(appointmentDate)
+        setSelectedDate(appointment.appointment_date)
+        setCalendarMonth(month)
+        setDateFrom(format(month, 'yyyy-MM-dd'))
+        setDateTo(format(endOfMonth(month), 'yyyy-MM-dd'))
+        setAppointments(current => current.some(item => item.id === appointment.id)
+          ? current.map(item => item.id === appointment.id ? appointment : item)
+          : [...current, appointment])
+      })
+      .catch(() => {})
+
+    return () => { cancelled = true }
+  }, [token, highlightedAppointmentId, shopId, employeeId])
 
   useEffect(() => {
     if (!showModal || !shopId || !employeeId || !form.appointmentDate) {
@@ -1152,13 +1207,25 @@ export default function StaffDashboard() {
                 {label}
               </Button>
             ))}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className={filterStatus === 'pending' ? 'border-gold bg-gold/15 text-gold' : ''}
+              onClick={() => {
+                setSelectedDate('')
+                setFilterStatus(current => current === 'pending' ? '' : 'pending')
+              }}
+            >
+              Onay bekleyenler
+            </Button>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Input label="Baslangic" type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setSelectedDate('') }} />
             <Input label="Bitis" type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setSelectedDate('') }} />
             <Select label="Durum" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="">Tumu</option>
-              <option value="pending">Bekliyor</option>
+              <option value="pending">Onay bekleyen</option>
               <option value="confirmed">Onaylandi</option>
               <option value="done">Geldi</option>
               <option value="no_show">Gelmedi</option>
