@@ -685,15 +685,31 @@ export default function StaffDashboard() {
   }
 
   async function updateStatusAndNotify(appointment, status) {
-    const updated = await updateStatus(appointment.id, status)
-    if (!updated) return
     const message = buildAppointmentMessage({
       shopName,
       appointment,
       status,
     })
     const url = buildWhatsAppUrl(appointment.customer_phone, message)
-    if (url) window.open(url, '_blank', 'noopener,noreferrer')
+
+    // Mobil tarayicilar, await sonrasinda acilan pencereyi pop-up olarak
+    // engelleyebilir. Tiklama aninda bos pencereyi ayirip onay basariliysa
+    // WhatsApp adresine yonlendiriyoruz.
+    const whatsappWindow = url ? window.open('', '_blank') : null
+    if (whatsappWindow) whatsappWindow.opener = null
+
+    const updated = await updateStatus(appointment.id, status)
+    if (!updated) {
+      whatsappWindow?.close()
+      return
+    }
+
+    if (whatsappWindow && url) {
+      whatsappWindow.location.replace(url)
+    } else if (url) {
+      // Tarayici bos pencereyi de engellerse, ayni sekmede WhatsApp'i ac.
+      window.location.assign(url)
+    }
   }
 
   function openWhatsApp(appointment, status = appointment.status) {
